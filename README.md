@@ -1,4 +1,4 @@
-# Mikrotik-ubuntu
+# Mikrotik-Ubuntu
 an script for install mikrotik on ubuntu
 
 ---
