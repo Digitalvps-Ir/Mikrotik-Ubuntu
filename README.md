@@ -6,7 +6,7 @@
 
 [![ستاره‌های گیت‌هاب](https://img.shields.io/github/stars/Digitalvps-Ir/Mikrotik-ubuntu?style=for-the-badge&logo=github&color=yellow)](https://github.com/Digitalvps-Ir/Mikrotik-ubuntu)
 [![آخرین نسخه](https://img.shields.io/badge/نسخه-7.20.6-blue?style=for-the-badge&logo=mikrotik)](https://github.com/Digitalvps-Ir/Mikrotik-ubuntu/releases)
-[![مجوز MIT](https://img.shields.io/badge/مجوز-MIT-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![ مجوز MIT ](https://img.shields.io/badge/مجوز-MIT-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![پشتیبانی Ubuntu](https://img.shields.io/badge/Ubuntu-18.04_تا_24.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![پشتیبانی Debian](https://img.shields.io/badge/Debian-9_تا_12-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://debian.org)
 
