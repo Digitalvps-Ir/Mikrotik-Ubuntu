@@ -1,70 +1,70 @@
-
-
-# بررسی لایسنس فعلی
-/system license print
----
-##📚 منابع آموزشی
-
-###
-آموزش‌های رسمی MikroTik
-
-- 📘 [MikroTik Wiki](https://wiki.mikrotik.com)
-- 🎓 [MikroTik Academy](https://mikrotik.com/training)
-- 📺 [MikroTik YouTube Channel](https://www.youtube.com/user/MikroTikTV)
-
-### آموزش‌های فارسی
-
-- 📖 [مستندات فارسی MikroTik](https://digitalvps.ir/docs/mikrotik)
-- 💬 [گروه تلگرام DigitalVps](https://t.me/digitalvps_group)
-- 📢 [کانال تلگرام](https://t.me/digital_vps)
-
-
-## 📜 مجوز (License)
-
-این پروژه تحت مجوز MIT منتشر شده است - [LICENSE](LICENSE) را برای جزئیات ببینید
+<td align="center" width="25%">
+<h3>💎 سازمانی</h3>
+<p>💻 ۱۶ vCore</p>
+<p>💾 ۳۲GB RAM</p>
+<p>💿 ۵۰۰GB SSD</p>
+<p>🌐 ۱۰Gbps</p>
+<hr>
+<h2>۱,۲۰۰,۰۰۰ تومان/ماه</h2>
+<a href="https://digitalvps.ir/mikrotik-vps">
+<img src="https://img.shields.io/badge/سفارش-9C27B0?style=for-the-badge"/>
+</a>
+</td>
+</tr>
+</table>
 
 ---
 
-<div align="center">
+### 🎁 پیشنهاد ویژه!
 
-## 💎 خدمات حرفه‌ای DigitalVps
+**کد تخفیف MIKROTIK2024 - ۲۵٪ تخفیف ۳ ماه**
 
-نیاز به سرور قدرتمند برای اجرای MikroTik دارید ؟
+✅ نصب رایگان MikroTik  
+✅ ۲۰٪ تخفیف لایسنس  
+✅ مهاجرت رایگان  
+✅ پشتیبانی اولویت‌دار  
 
-DigitalVps سرورهای بهینه‌شده ویژه برای MikroTik RouterOS ارائه می‌دهد!
+<a href="https://digitalvps.ir/mikrotik-vps?coupon=MIKROTIK2024">
+<img src="https://img.shields.io/badge/🚀_دریافت_تخفیف-FF4081?style=for-the-badge" height="50"/>
+</a>
 
-### 🚀 پکیج‌های ویژه MikroTik
+---
 
-<table>
-<tr>
-<td align="center" width="25%">
-<h4>🥉 Basic</h4>
-<p><b>2 vCore CPU</b></p>
-<p>4GB RAM</p>
-<p>50GB SSD</p>
-<p>1Gbps Port</p>
-<p><s>200,000 تومان</s></p>
-<p><b>150,000 تومان/ماه</b></p>
-<a href="https://digitalvps.ir/mikrotik-vps">سفارش →</a>
-</td>
-<td align="center" width="25%">
-<h4>🥈 Standard</h4>
-<p><b>4 vCore CPU</b></p>
-<p>8GB RAM</p>
-<p>100GB SSD</p>
-<p>1Gbps Port</p>
-<p><s>400,000 تومان</s></p>
-<p><b>320,000 تومان/ماه</b></p>
-<a href="https://digitalvps.ir/mikrotik-vps">سفارش →</a>
-</td>
-<td align="center" width="25%">
-<h4>🥇 Professional</h4>
-<p><b>8 vCore CPU</b></p>
-<p>16GB RAM</p>
-<p>200GB SSD</p>
-<p>10Gbps Port</p>
-<p><s>800,000 تومان</s></p>
-<p><b>640,000 تومان/ماه</b></p>
+### 🔗 لینک‌ها
+
+| سرویس | لینک |
+|:-----:|:-----|
+| 🌐 | [digitalvps.ir](https://digitalvps.ir) |
+| 🖥️ | [پنل کاربری](https://client.digitalvps.ir) |
+| 📊 | [وضعیت](https://status.digitalvps.ir) |
+| 🔍 | [تست شبکه](https://check.digitalvps.ir) |
+| 💬 | [کانال تلگرام](https://t.me/digital_vps) |
+| 👥 | [گروه پشتیبانی](https://t.me/digitalvps_group) |
+
+---
+
+<p align="center">
+<b>🏆 مورد اعتماد +۱۰,۰۰۰ متخصص شبکه</b>
+</p>
+
+<p align="center">
+<img src="https://img.shields.io/badge/⭐⭐⭐⭐⭐-4.9/5.0-yellow?style=for-the-badge"/>
+</p>
+
+---
+
+<p align="center">
+<b>ساخته شده با ❤️ توسط تیم DigitalVps</b><br>
+<sub>© ۲۰۲۴ DigitalVps.ir - تمامی حقوق محفوظ</sub>
+</p>
+
+<p align="center">
+<a href="https://github.com/Digitalvps-Ir/Mikrotik-ubuntu">⭐ ستاره بدهید</a> •
+<a href="https://github.com/Digitalvps-Ir/Mikrotik-ubuntu/issues">🐛 گزارش باگ</a> •
+<a href="#-نصب-خودکار-mikrotik-chr-روی-ubuntu">⬆️ بازگشت به بالا</a>
+</p>
+
+</div><p><b>640,000 تومان/ماه</b></p>
 <a href="https://digitalvps.ir/mikrotik-vps">سفارش →</a>
 </td>
 <td align="center" width="25%">
