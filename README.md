@@ -4,9 +4,10 @@
 /system license print
 ---
 
-## 📚 منابع آموزشی
+##📚 منابع آموزشی
 
-### آموزش‌های رسمی MikroTik
+###
+آموزش‌های رسمی MikroTik
 
 - 📘 [MikroTik Wiki](https://wiki.mikrotik.com)
 - 🎓 [MikroTik Academy](https://mikrotik.com/training)
