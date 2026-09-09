@@ -2,6 +2,15 @@
 
 **Deploy an official RouterOS CHR image to an offline VPS disk from Linux rescue/live mode.**
 
+## Choose your installation path
+
+| Starting environment | Entry point |
+|---|---|
+| Running Ubuntu, no provider Rescue | **[Experimental RAM boot path](docs/RAM-INSTALL.md)**: `ram-install.sh` |
+| Rescue/live with an unused offline disk | `script.sh`; the remaining installation sections below |
+
+The RAM path stages inside Ubuntu, then writes the disk from a separate RAM environment after explicit confirmation and manual reboot. Initial scope: KVM/QEMU, BIOS, one VirtIO disk, plain ext4 root and required built-in kernel drivers. No automatic network migration. A non-writing probe is provided. **Real RAM boot has not yet been tested.**
+
 [فارسی — راهنمای نصب میکروتیک](README.md) · [DigitalVPS MikroTik VPS](https://client.digitalvps.ir/store/mikrotik-vps) · [Client area](https://client.digitalvps.ir/) · [Support](https://client.digitalvps.ir/supporttickets.php)
 
 This open-source **DigitalVPS (دیجیتال وی پی اس)** project helps Linux and network administrators prepare a virtual server disk for **MikroTik RouterOS Cloud Hosted Router**. The installer provides explicit disk selection, mandatory archive SHA256 verification, a non-writing dry run, and image-range read-back verification.
@@ -10,7 +19,7 @@ This open-source **DigitalVPS (دیجیتال وی پی اس)** project helps Li
 > This is a destructive fresh installation, not an application installed inside Ubuntu. Existing partitions and the OS on the selected disk are replaced. Keep an off-server backup and a working provider console. Never run it on a Virtualizor host node, physical hypervisor, active customer server or valuable disk.
 
 > [!IMPORTANT]
-> Breaking change: writing over a mounted running OS, automatic disk selection and forced reboot have been removed. Boot rescue/live mode to replace the Ubuntu system disk. **Networking is not migrated automatically. Real CHR boot on KVM/VMware has not yet been certified.** Complete the [disposable-VM acceptance checklist](docs/TESTING.md) before production use.
+> Breaking change: `script.sh` writes offline disks only. Use the separate RAM path above if provider Rescue is unavailable; do not remove the mounted-disk guard. **Networking is not migrated automatically. Real CHR boot has not yet been certified.** Complete the [disposable-VM acceptance checklist](docs/TESTING.md) before production use. The remaining installation instructions below describe the offline path.
 
 ## Contents
 

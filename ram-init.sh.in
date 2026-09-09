@@ -1,0 +1,66 @@
+#!/bin/sh
+export PATH=/bin
+/bin/busybox --install -s /bin
+set -eu
+set -o pipefail
+fail() {
+    trap - EXIT
+    echo "DIGITALVPS RAM FAILED: $*"
+    echo "No automatic reboot. If a write started, disk may be incomplete. Use panel console/rebuild."
+    while :; do sleep 60; done
+}
+trap 'fail "unexpected exit or command failure"' EXIT
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+exec </dev/console >/dev/console 2>&1
+echo "DigitalVPS experimental RAM stage: @MODE@"
+[ "$$" -eq 1 ] || fail "must run as PID 1"
+DISK='@DISK@'
+NAME=${DISK#/dev/}
+EXPECTED_SECTORS='@SECTORS@'
+EXPECTED_MBR='@MBR@'
+# No network, SSH, udev, mounts of the old root, swap or other writers are started.
+sleep 3
+[ -b "$DISK" ] || fail "target not found"
+[ "$(cat /sys/class/block/"$NAME"/size)" = "$EXPECTED_SECTORS" ] || fail "disk size changed"
+[ "$(cat /sys/class/block/"$NAME"/ro)" = 0 ] || fail "read-only target"
+[ "$(cat /sys/class/block/"$NAME"/queue/logical_block_size)" = 512 ] || fail "sector size changed"
+DISKS=0
+for item in /sys/block/vd* /sys/block/sd* /sys/block/nvme*n*; do
+    [ -e "$item" ] || continue
+    DISKS=$((DISKS + 1))
+done
+[ "$DISKS" -eq 1 ] || fail "unexpected additional disk"
+for holder in /sys/class/block/"$NAME"/holders/* /sys/class/block/"$NAME"[0-9]*/holders/*; do
+    [ ! -e "$holder" ] || fail "active disk holder"
+done
+[ "$(wc -l </proc/swaps)" -eq 1 ] || fail "active swap"
+awk '$1 ~ /^\/dev\// {found=1} END {exit found ? 1 : 0}' /proc/mounts || fail "a block filesystem is mounted"
+ACTUAL_MBR=$(dd if="$DISK" bs=512 count=1 2>/dev/null | sha256sum)
+[ "${ACTUAL_MBR%% *}" = "$EXPECTED_MBR" ] || fail "disk boot-sector fingerprint changed"
+if [ '@MODE@' = probe ]; then
+    echo "DIGITALVPS RAM PROBE PASS: correct disk visible, old root NOT mounted, NO DISK WRITES."
+    echo "Returning to normal boot in 30 seconds. Record this console output as evidence."
+    sleep 30
+    sync
+    reboot -f
+    fail "reboot failed"
+fi
+[ '@MODE@' = install ] || fail "invalid mode"
+ACTUAL_IMAGE=$(sha256sum /chr.img)
+[ "${ACTUAL_IMAGE%% *}" = '@IMAGE_HASH@' ] || fail "RAM image SHA256 mismatch"
+[ "$(wc -c </chr.img)" -eq '@IMAGE_SIZE@' ] || fail "RAM image size mismatch"
+echo "STARTING IRREVERSIBLE INSTALL on $DISK. Ubuntu will be replaced."
+# Clear stale backup GPT at the end, then write the already verified image.
+dd if=/dev/zero of="$DISK" bs=512 seek=$((EXPECTED_SECTORS - 2048)) count=2048 conv=notrunc,fsync
+dd if=/chr.img of="$DISK" bs=1048576 conv=notrunc,fsync
+sync
+READBACK=$(head -c '@IMAGE_SIZE@' "$DISK" | sha256sum)
+[ "${READBACK%% *}" = '@IMAGE_HASH@' ] || fail "read-back SHA256 mismatch"
+echo "DIGITALVPS CHR IMAGE WRITE VERIFIED. CHR boot/network NOT verified."
+echo "Rebooting in 15 seconds. Configure password and production networking through provider console."
+sleep 15
+sync
+reboot -f
+fail "reboot failed"

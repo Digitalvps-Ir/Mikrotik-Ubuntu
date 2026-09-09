@@ -115,7 +115,7 @@ def check_target(disk):
             "Specify a canonical whole disk such as /dev/vda, /dev/sda or /dev/nvme0n1; aliases are rejected.")
     info = os.lstat(disk)
     require(stat.S_ISBLK(info.st_mode), "Target is not a block device (symlinks/files are rejected).")
-    inventory = json.loads(run("lsblk", "--json", "--bytes", "--paths", "--output",
+    inventory = json.loads(run("lsblk", "--json", "--bytes", "--paths", "--tree", "--output",
                                "PATH,TYPE,SIZE,RO,RM,LOG-SEC,MOUNTPOINT,FSTYPE,MAJ:MIN,MODEL,SERIAL"))
     # MOUNTPOINT (singular) also exists on Ubuntu 20.04's util-linux.
     # Any reported mount is sufficient for rejection; we never unmount anything.

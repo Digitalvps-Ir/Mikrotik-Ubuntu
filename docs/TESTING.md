@@ -1,5 +1,7 @@
 # Verification report and release acceptance
 
+RAM-path update: [experimental RAM boot](RAM-INSTALL.md) has been added alongside the offline path. It has separate check/prepare/arm/cancel actions and a non-writing boot probe. Real RAM/GRUB/CHR boot is still **untested**. The original 46-test result below is historical; the expanded suite now includes RAM packaging, staging and safety tests.
+
 ## Scope / محدوده
 
 The rewritten installer is **not production-certified**. Automated tests exercise validation, orchestration and file I/O without accessing a real block device or downloading RouterOS. Some validation functions are tested with mocks; success does not certify real-device kernel locking, CHR boot, image layout, controller compatibility or networking.
@@ -22,7 +24,7 @@ The tests use `unittest`, not a third-party framework. The read-only integration
 | Check | Result / meaning |
 |---|---|
 | Bash syntax, both entry points | Passed |
-| Python unit / workflow / documentation tests | 46 tests passed |
+| Python unit / workflow / documentation tests | 65 tests passed (46 original + 19 RAM-path tests) |
 | Real Linux inventory-command syntax | Passed on the available runtime only |
 | Official archive download | Not executed in this restricted runtime |
 | Official CHR image extraction | Not executed; synthetic ZIP fixtures tested |
@@ -62,12 +64,12 @@ Do not label every accepted version "supported/tested" based on one successful V
 
 ## Known limitations
 
-- Rescue/offline-disk installation is a deliberate breaking change from the unsafe mounted-root writer.
+- `script.sh` remains offline-only. The separate experimental `ram-install.sh` stages from running Ubuntu and boots into RAM before raw disk writes; its probe must be validated first.
 - No network migration/config injection. Production addresses must be recorded before rescue and configured via console after boot.
 - No automatic checksum discovery; authenticity depends on a trusted reference digest.
 - Only basic image format checks; an MBR signature alone cannot prove CHR correctness or bootability.
 - Read-back occurs through the OS after `fsync`; it is not independent storage-hardware certification.
-- No unattended install, automatic backup, rollback, reboot, filesystem expansion, UEFI enablement or secure erase.
+- No automatic backup, rollback, filesystem expansion, UEFI enablement or secure erase. The offline path never reboots; the RAM path requires manual initial reboot after arming, then automatically reboots on successful probe or verified installation.
 - Kernel/device enumeration differs between environments. Safety checks intentionally reject uncertain/unsupported layouts rather than auto-deactivate them.
 - A private mount namespace/container is unsupported. Use the VM's normal rescue environment, with no concurrent storage management or automount operations.
 - The existing DigitalVPS knowledge-base article links the old one-line installer. Coordinate its documentation update before merging this breaking change; this repository change does not edit the website.

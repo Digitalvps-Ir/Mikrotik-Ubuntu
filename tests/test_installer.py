@@ -307,6 +307,7 @@ class WorkflowTests(unittest.TestCase):
                 self.assertRaisesRegex(installer.InstallError, "Active swap"):
             installer.check_target("/dev/vda")
         self.assertNotIn("--json", command.call_args.args)
+        self.assertIn("--tree", command.call_args_list[0].args)
 
     def test_check_target_missing_identity_fails_closed(self):
         data = inventory()
@@ -323,7 +324,7 @@ class WorkflowTests(unittest.TestCase):
         # Real commands, read-only. Confirm the supported column/flag spelling.
         if not installer.shutil.which("lsblk") or not installer.shutil.which("swapon"):
             self.skipTest("util-linux is not available")
-        data = json.loads(installer.run("lsblk", "--json", "--bytes", "--paths", "--output",
+        data = json.loads(installer.run("lsblk", "--json", "--bytes", "--paths", "--tree", "--output",
                                        "PATH,TYPE,SIZE,RO,RM,LOG-SEC,MOUNTPOINT,FSTYPE,MAJ:MIN,MODEL,SERIAL"))
         self.assertIn("blockdevices", data)
         installer.run("swapon", "--show", "--noheadings", "--raw", "--output", "NAME")
