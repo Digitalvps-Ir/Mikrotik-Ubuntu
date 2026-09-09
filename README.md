@@ -1,875 +1,227 @@
-<div align="center">
+# نصب MikroTik CHR روی Ubuntu و Debian | دیجیتال وی پی اس
 
-# 🚀 نصب خودکار MikroTik CHR روی Ubuntu
+**DigitalVPS MikroTik CHR Installer — اسکریپت نصب RouterOS روی دیسک آفلاین سرور مجازی**
 
-### 🔧 اسکریپت نصب هوشمند MikroTik RouterOS CHR
+[English documentation](README.en.md) · [سرور مجازی میکروتیک](https://client.digitalvps.ir/store/mikrotik-vps) · [ناحیه کاربری دیجیتال وی پی اس](https://client.digitalvps.ir/) · [پشتیبانی](https://client.digitalvps.ir/supporttickets.php)
 
-[![ستاره‌های گیت‌هاب](https://img.shields.io/github/stars/Digitalvps-Ir/Mikrotik-ubuntu?style=for-the-badge&logo=github&color=yellow)](https://github.com/Digitalvps-Ir/Mikrotik-ubuntu)
-[![آخرین نسخه](https://img.shields.io/badge/نسخه-7.20.6-blue?style=for-the-badge&logo=mikrotik)](https://github.com/Digitalvps-Ir/Mikrotik-ubuntu/releases)
-[![ مجوز MIT ](https://img.shields.io/badge/مجوز-MIT-green?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![پشتیبانی Ubuntu](https://img.shields.io/badge/Ubuntu-18.04_تا_24.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com)
-[![پشتیبانی Debian](https://img.shields.io/badge/Debian-9_تا_12-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://debian.org)
+ابزار متن‌باز **دیجیتال وی پی اس (DigitalVPS)** برای آماده‌سازی دیسک سرور مجازی با ایمیج رسمی **MikroTik RouterOS CHR**، از محیط **Ubuntu یا Debian Rescue/Live**. این پروژه برای مدیران لینوکس و شبکه طراحی شده است: انتخاب صریح دیسک، بررسی SHA256، حالت بررسی بدون نوشتن و تطبیق داده پس از نصب.
 
-**🎯 نصب تک‌کلیکی** • **🔄 پشتیبانی چند نسخه** • **⚡ آماده برای پروداکشن** • **🆓 رایگان و متن‌باز**
+> [!CAUTION]
+> این ابزار Ubuntu را به‌صورت یک برنامه اجراکننده MikroTik نگه نمی‌دارد؛ نصب روی دیسک انتخاب‌شده، سیستم‌عامل و پارتیشن‌های قبلی را جایگزین می‌کند. قبل از اجرا، بکاپ خارج از سرور و کنسول VNC/Serial/پنل داشته باشید. روی نود Virtualizor، سرور میزبان، سرور مشتری فعال یا دیسک دارای اطلاعات اجرا نکنید.
 
-[📥 نصب سریع](#-نصب-سریع) • [📖 مستندات](#-ویژگیهای-جامع) • [💡 نمونه‌های کاربردی](#-موارد-استفاده-واقعی) • [💬 پشتیبانی](https://t.me/digitalvps_group) • [🌐 وب‌سایت](https://digitalvps.ir)
+> [!IMPORTANT]
+> **تغییر سازگارنبودن با نسخه قبلی:** نصب روی دیسک Mount‌شده، انتخاب خودکار دیسک و ریبوت اجباری حذف شده‌اند. نصب فقط روی دیسک بلااستفاده انجام می‌شود؛ برای جایگزینی Ubuntu باید ابتدا Rescue/Live بوت کنید. شبکه به‌صورت خودکار منتقل نمی‌شود. بوت واقعی CHR در محیط KVM/VMware هنوز تأیید نشده است؛ پیش از استفاده عملیاتی، [چک‌لیست پذیرش](docs/TESTING.md) را روی یک VM دورریختنی اجرا کنید.
 
----
+## راهنمای سریع
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/MikroTik_logo.svg/400px-MikroTik_logo.svg.png" alt="MikroTik RouterOS CHR" width="300"/>
+- [قابلیت‌ها و محدودیت‌ها](#capabilities)
+- [پیش‌نیازها](#requirements)
+- [دانلود و نصب میکروتیک](#installation)
+- [اولین بوت و تنظیم شبکه](#network)
+- [خطاها و بازیابی](#troubleshooting)
+- [سؤالات متداول](#faq)
+- [درباره دیجیتال وی پی اس](#digitalvps)
 
-<p align="center">
-<strong>اسکریپت حرفه‌ای نصب MikroTik RouterOS CHR</strong><br>
-پشتیبانی از نسخه‌های 6.x تا 7.20.6 با پیکربندی خودکار
-</p>
+<a id="capabilities"></a>
+## قابلیت‌ها و محدودیت‌های واقعی
 
-</div>
+| قابلیت | رفتار نصب‌کننده |
+|---|---|
+| منبع ایمیج CHR | فقط `download.mikrotik.com` با HTTPS؛ بدون دنبال‌کردن Redirect |
+| انتخاب نسخه | نسخه عددی دقیق سری 6 یا 7 با `--version`؛ بدون ادعای «جدیدترین نسخه» |
+| اعتبارسنجی دانلود | SHA256 اجباری آرشیو ZIP مطابق مقدار معتبر ارائه‌شده توسط کاربر |
+| اعتبارسنجی ایمیج | ZIP تک‌فایلی، نام و اندازه محدود، CRC هنگام استخراج و امضای ابتدایی بوت |
+| انتخاب دیسک | مسیر کامل دیسک با `--disk`؛ بدون حدس‌زدن یا انتخاب اولین دیسک |
+| کنترل ایمنی | رد Mount، Swap فعال، Read-only، ساختارهای پیچیده و تغییر هویت دیسک |
+| Dry-run | بررسی محیط، دیسک، دانلود و ایمیج؛ بدون نوشتن روی دیسک مقصد |
+| تأیید نصب | نیازمند ترمینال تعاملی و تایپ نام دقیق دیسک و نسخه |
+| نوشتن و بررسی | بازکردن انحصاری دیسک، نوشتن، `fsync` و مقایسه SHA256 محدوده ایمیج |
+| پاک‌سازی موقت | پوشه موقت خصوصی؛ بدون Mount کردن فایل‌سیستم CHR یا Loop device |
+| ریبوت | فقط دستی از طریق پنل؛ نصب‌کننده ریبوت نمی‌کند |
 
----
+**مواردی که انجام نمی‌شود:** انتقال خودکار شبکه، اعمال رمز و فایروال RouterOS، Backup، Rollback، ارتقای RouterOS موجود، Resize پارتیشن، Secure Erase یا تضمین بوت/کارایی. باقی‌مانده داده قبلی خارج از محدوده ایمیج ممکن است روی دیسک بماند. آخرین 1 MiB دیسک برای پاک‌کردن بقایای GPT پشتیبان صفر می‌شود؛ این پاک‌سازی امن همه اطلاعات نیست.
 
-## 📋 فهرست مطالب
+<a id="requirements"></a>
+## پیش‌نیازها
 
-- [🎯 MikroTik CHR چیست؟](#-mikrotik-chr-چیست)
-- [✨ ویژگی‌های کلیدی](#-ویژگیهای-کلیدی)
-- [📦 نسخه‌های پشتیبانی شده](#-نسخههای-routeros-پشتیبانی-شده)
-- [⚡ نصب سریع](#-نصب-سریع)
-- [🔧 ویژگی‌های جامع](#-ویژگیهای-جامع)
-- [💻 سیستم مورد نیاز](#-سیستم-مورد-نیاز)
-- [📊 مقایسه نسخه‌ها](#-مقایسه-نسخهها)
-- [🚀 راهنمای نصب گام‌به‌گام](#-راهنمای-نصب-گامبهگام)
-- [⚙️ پیکربندی اولیه](#️-پیکربندی-اولیه)
-- [💡 موارد استفاده واقعی](#-موارد-استفاده-واقعی)
-- [🔐 بهترین شیوه‌های امنیتی](#-بهترین-شیوههای-امنیتی)
-- [❓ سوالات متداول](#-سوالات-متداول)
-- [🐛 رفع مشکلات](#-رفع-مشکلات)
-- [📚 منابع آموزشی](#-منابع-آموزشی)
-- [🤝 مشارکت](#-مشارکت-در-پروژه)
-- [💎 خدمات پرمیوم](#-هاستینگ-پرمیوم-mikrotik)
+| مورد | محدوده پذیرفته‌شده توسط کد؛ نه گواهی تست بوت |
+|---|---|
+| محیط لینوکس | Ubuntu 20.04 / 22.04 / 24.04 یا Debian 11 / 12 / 13 در Rescue/Live |
+| مجازی‌سازی | مهمان KVM، QEMU یا VMware؛ نه هاست فیزیکی و نه کانتینر |
+| معماری و بوت | x86-64 و بوت Rescue در حالت Legacy BIOS؛ UEFI در این نسخه پذیرفته نمی‌شود |
+| دیسک | دیسک کامل با سکتور منطقی 512 بایت، حداقل 1 GiB و بزرگ‌تر از ایمیج به‌اضافه 1 MiB |
+| فضای موقت | حداقل 576 MiB پیش از دانلود؛ سپس به‌اندازه ایمیج بازشده + 64 MiB فضای آزاد |
+| اندازه دانلود | ZIP حداکثر 512 MiB؛ ایمیج حداکثر 2 GiB |
+| دسترسی | Root، اینترنت HTTPS به MikroTik و کنسول مستقل از SSH |
+| ابزارها | Bash، Python 3، curl، util-linux، systemd و CA certificates؛ Git برای دریافت پروژه |
 
----
+حالت‌های OpenVZ/LXC/Docker، دیسک‌های Loop/Mapper، RAID/LVM/LUKS/ZFS/Btrfs، دیسک Removable و 4Kn پشتیبانی نمی‌شوند. نام دیسک می‌تواند مانند `/dev/vda`، `/dev/sda` یا `/dev/nvme0n1` باشد؛ این به‌معنای تضمین پشتیبانی کنترلر مربوطه در RouterOS نیست. نسخه‌های قدیمی Ubuntu/RouterOS صرفاً به‌دلیل پذیرفته‌شدن در کد برای استفاده عملیاتی توصیه نمی‌شوند.
 
-## 🎯 MikroTik CHR چیست؟
+<a id="installation"></a>
+## دانلود و نصب MikroTik CHR
 
-<div align="center">
+### ۱. قبل از ورود به Rescue
 
-| ویژگی | توضیحات |
-|:-------:|:------------|
-| 🌐 **Cloud Hosted Router** | نسخه مجازی RouterOS بهینه‌شده برای محیط‌های ابری و دیتاسنتر |
-| ⚡ **عملکرد سازمانی** | مسیریابی حرفه‌ای، فایروال، VPN، QoS و ترافیک شیپینگ |
-| 🔧 **قابلیت‌های کامل** | تمام امکانات RouterOS در محیط مجازی |
-| 💰 **شروع رایگان** | 1Mbps رایگان با امکان ارتقا |
-| 🎓 **استاندارد صنعتی** | استفاده توسط ISP ها و متخصصان شبکه |
+از پنل، IP تولیدی، Prefix، Gateway، DNS، MAC و نوع کارت شبکه را یادداشت کنید. تنظیمات شبکه Rescue ممکن است با شبکه اصلی فرق کند. وجود بکاپ خارج از سرور، امکان Restore و دسترسی واقعی کنسول را بررسی کنید. فایروال ارائه‌دهنده را قبل از بوت CHR محدود کنید؛ دسترسی مدیریت را فقط برای IP خودتان باز بگذارید.
 
-</div>
-
-**MikroTik CHR (Cloud Hosted Router)** نسخه رسمی مجازی‌شده RouterOS است که برای KVM/VMware و پلتفرم‌های ابری بهینه‌سازی شده و تمام قابلیت‌های قدرتمند روترهای فیزیکی MikroTik را در محیط مجازی ارائه می‌دهد.
-
----
-
-## ✨ ویژگی‌های کلیدی
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🎨 **نصب و راه‌اندازی**
-
-```
-✓ نصب کاملاً خودکار
-✓ بدون پیکربندی دستی
-✓ مدیریت هوشمند پارتیشن
-✓ نصب مستقیم ایمیج
-✓ پیکربندی خودکار شبکه
-✓ ثبت کامل مراحل
-✓ محافظت از دیسک
-✓ بازگشت در صورت خطا
-```
-
-</td>
-<td width="50%" valign="top">
-
-### 🔧 **مدیریت نسخه**
-
-```
-✓ 8+ نسخه RouterOS
-✓ سری v6.x (پایدار)
-✓ سری v7.x (مدرن)
-✓ آخرین نسخه‌های پایدار
-✓ نسخه‌های LTS
-✓ منوی انتخاب نسخه
-✓ دانلود از MikroTik
-✓ بررسی Checksum
-```
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 🚀 **عملکرد**
-
-```
-✓ بهینه برای KVM
-✓ درایور VirtIO
-✓ شتاب‌دهی FastPath
-✓ Hardware Offloading
-✓ پردازش چند هسته‌ای
-✓ پهنای باند بالا
-✓ تاخیر کم
-✓ پایداری پروداکشن
-```
-
-</td>
-<td width="50%" valign="top">
-
-### 🛡️ **امنیت**
-
-```
-✓ ایمیج‌های رسمی
-✓ بررسی SHA256
-✓ نصب ایمن
-✓ پیکربندی امنیتی
-✓ پشتیبانی Backup
-✓ ارتقای ایمن
-✓ ثبت رویدادها
-✓ بازیابی خطا
-```
-
-</td>
-</tr>
-</table>
-
----
-
-## 📦 نسخه‌های RouterOS پشتیبانی شده
-
-<div align="center">
-
-### 🔷 سری RouterOS 6.x (پایدار بلندمدت)
-
-| نسخه | سال | وضعیت | توصیه برای |
-|:---:|:---:|:---:|:---|
-| **6.45** | 2019 | 🟢 پایدار | سیستم‌های قدیمی |
-| **6.46** | 2020 | 🟢 پایدار | پروداکشن اثبات‌شده |
-| **6.47** | 2021 | 🟢 پایدار | استقرار استاندارد |
-| **6.48 LTS** | 2022 | 🟢 بلندمدت | زیرساخت حیاتی |
-
-### 🔶 سری RouterOS 7.x (مدرن و پرامکانات)
-
-| نسخه | سال | وضعیت | توصیه برای |
-|:---:|:---:|:---:|:---|
-| **7.1** | 2021 | 🟢 پایدار | پذیرندگان اولیه |
-| **7.6** | 2022 | 🟢 پایدار | استقرار استاندارد |
-| **7.7** | 2023 | 🟢 پایدار | امکانات پیشرفته |
-| **7.11** | 2023 | 🟢 پایدار | شبکه مدرن |
-| **7.12** | 2024 | 🟢 پایدار | پشتیبانی Container |
-| **7.14** | 2024 | 🟡 پایدار | امکانات جدید |
-| **7.20.6** | 2024 | 🔴 جدیدترین | تست و توسعه |
-
-</div>
-
-### 🎯 راهنمای انتخاب نسخه
-
-| مورد استفاده | نسخه پیشنهادی |
-|:---|:---|
-| 🏢 **ISP/Datacenter** | v6.48 LTS یا v7.12 |
-| 🔐 **سرور VPN** | v7.11+ (WireGuard) |
-| 🌐 **روتر سازمانی** | v7.12+ (BGP) |
-| 🧪 **تست/توسعه** | v7.20.6 |
-| 💼 **کسب‌وکار کوچک** | v7.7 یا v7.11 |
-| 🚀 **عملکرد بالا** | v7.14+ |
-
----
-
-## ⚡ نصب سریع
-
-### 🎯 نصب تک‌دستوری (توصیه شده)
+دستورهای زیر فقط برای ثبت وضعیت Ubuntu فعلی هستند؛ هیچ شبکه‌ای را تغییر نمی‌دهند:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-ubuntu/main/install.sh)
+ip -br address
+ip -4 route show table all
+ip -6 route show table all
+ip -d link show
 ```
 
-**روش جایگزین:**
+### ۲. بوت Rescue/Live و دریافت پروژه کامل
+
+برای جایگزینی دیسک سیستم، از پنل Rescue/Live بوت کنید. دیسک مقصد نباید Mount باشد یا عضو ساختار ذخیره‌سازی فعال باشد. اسکریپت خودش Mount، Swap یا LVM را غیرفعال نمی‌کند.
 
 ```bash
-bash <(wget -qO- https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-ubuntu/main/install.sh)
+sudo apt-get update
+sudo apt-get install -y git python3 curl ca-certificates util-linux systemd
+git clone https://github.com/Digitalvps-Ir/Mikrotik-Ubuntu.git
+cd Mikrotik-Ubuntu
+bash script.sh --help
+lsblk -o NAME,TYPE,SIZE,MODEL,SERIAL,MOUNTPOINT
 ```
 
-### 📥 نصب دستی
+قبل از اجرای Root کد را بازبینی کنید؛ برای نصب تکرارپذیر از Commit بررسی‌شده استفاده کنید. `script.sh` و `install.sh` هر دو به `chr_installer.py` در همان پوشه نیاز دارند؛ دانلود یک فایل یا `curl | bash` دیگر روش نصب نیست.
+
+### ۳. نسخه و SHA256 معتبر را مشخص کنید
+
+از [دانلود رسمی CHR](https://mikrotik.com/download/chr)، نسخه مناسب و **RAW disk برای x86-64** را انتخاب کنید. SHA256 موردنیاز مربوط به **فایل ZIP دانلودی** است، نه فایل IMG استخراج‌شده. عدد نسخه باید دقیقاً با همان آرشیو تطبیق داشته باشد.
+
+SHA256 را از منبع معتبر همان انتشار بگیرید. اگر برای آرشیو انتخابی مقدار رسمی در دسترس نیست، ابتدا یک نسخه مرجع را روی سیستم مورداعتماد خود از مسیر رسمی دریافت و بررسی کنید، سپس Hash آن را ثبت کنید. Hash تولیدشده از همان دانلود مشکوک، به‌تنهایی اصالت فایل را ثابت نمی‌کند. نصب‌کننده Hash معتبر را خودکار کشف نمی‌کند و هیچ مقدار ساختگی پیش‌فرض ندارد.
 
 ```bash
-# کلون مخزن
-git clone https://github.com/Digitalvps-Ir/Mikrotik-ubuntu.git
-cd Mikrotik-ubuntu
-
-# قابل اجرا کردن
-chmod +x install.sh
-
-# اجرا
-sudo ./install.sh
+# فقط روی آرشیو مرجعِ مورداعتماد خودتان:
+sha256sum chr-7.23.5.img.zip
 ```
 
-### ⏱️ زمان نصب
+`7.23.5` در مثال‌ها یک نسخه مشخص است، نه وعده «همیشه جدیدترین». قبل از استقرار، Release notes و وضعیت امنیتی نسخه انتخابی را بررسی کنید. امکان نوشتن نسخه 6/7 به‌معنای تأیید بوت همه نسخه‌ها نیست.
 
-| نوع سرور | مدت زمان |
-|:---|:---|
-| VPS سریع | 3-5 دقیقه |
-| VPS استاندارد | 5-10 دقیقه |
-| هاستینگ اشتراکی | 10-15 دقیقه |
+### ۴. Dry-run؛ بدون نوشتن روی دیسک
 
----
-
-## 🔧 ویژگی‌های جامع
-
-### 🌐 قابلیت‌های شبکه
-
-<table>
-<tr>
-<td width="50%">
-
-#### پروتکل‌های مسیریابی
-- 📡 **BGP** - IPv4/IPv6
-- 🔄 **OSPF** - v2 و v3
-- 🌍 **RIP** - v1/v2
-- 📊 **MPLS** - تعویض برچسب
-- 🔀 **Static Routes** - مسیرهای استاتیک
-- 🎯 **Policy Routing** - PBR
-
-#### فناوری‌های VPN
-- 🔐 **WireGuard** - مدرن و سریع
-- 🛡️ **IPsec** - رمزگذاری سازمانی
-- 📱 **L2TP/IPsec** - کلاینت VPN
-- 🔒 **SSTP** - تونل امن
-- 🌐 **OpenVPN** - چندپلتفرمی
-- 🔗 **PPPoE** - اتصالات DSL
-
-</td>
-<td width="50%">
-
-#### امکانات پیشرفته
-- 🔥 **Firewall** - فیلترینگ Stateful
-- ⚡ **FastPath** - شتاب‌دهی
-- 📊 **QoS** - ترافیک شیپینگ
-- 🎛️ **Load Balancing** - چند WAN
-- 🌈 **VLAN** - 802.1Q
-- 🔗 **Bonding** - جمع‌آوری لینک
-- 📡 **Hotspot** - کپتیو پورتال
-- 🎭 **Proxy** - کش وب
-- 📈 **SNMP** - مانیتورینگ
-- 📝 **Logging** - ثبت رویدادها
-
-</td>
-</tr>
-</table>
-
----
-
-## 💻 سیستم مورد نیاز
-
-### حداقل نیازمندی‌ها
-
-| مشخصه | الزامات |
-|:---|:---|
-| 🖥️ **CPU** | 1 vCore (x86-64) |
-| 💾 **RAM** | 1 GB |
-| 💿 **ذخیره‌سازی** | 10 GB |
-| 🌐 **شبکه** | 1 NIC |
-| 🔧 **مجازی‌سازی** | KVM, VMware |
-| 📦 **OS** | Ubuntu 18.04+ / Debian 9+ |
-
-### توصیه برای پروداکشن
-
-| مشخصه | الزامات |
-|:---|:---|
-| 🖥️ **CPU** | 4+ vCore |
-| 💾 **RAM** | 4-8 GB |
-| 💿 **ذخیره‌سازی** | 50 GB SSD |
-| 🌐 **شبکه** | 1-10 Gbps |
-| 🔧 **مجازی‌سازی** | KVM با VirtIO |
-| 📦 **OS** | Ubuntu 22.04 / Debian 12 |
-
-### ⚠️ نکات مهم
-
-```
-⚠️ OpenVZ/LXC پشتیبانی نمی‌شود
-⚠️ KVM یا VMware الزامی است
-⚠️ نیاز به دسترسی Root
-⚠️ اتصال پایدار اینترنت لازم
-```
-
----
-
-## 📊 مقایسه نسخه‌ها
-
-### RouterOS 6.x vs 7.x
-
-<div align="center">
-
-| امکانات | v6.x | v7.x |
-|:---|:---:|:---:|
-| استفاده پایدار | ✅ | ✅ |
-| WireGuard VPN | ❌ | ✅ |
-| Container | ❌ | ✅ |
-| ZeroTier | ❌ | ✅ |
-| پردازش چندهسته‌ای | ⚠️ | ✅ |
-| IPv6 | ✅ | ✅ |
-| عملکرد BGP | ✅ | ✅ |
-| OSPF v3 | ✅ | ✅ |
-| WiFi 6 | ❌ | ✅ |
-| API | ✅ | ✅ |
-| LTS | ✅ v6.48 | 🔄 |
-
-</div>
-
----
-
-## 🚀 راهنمای نصب گام‌به‌گام
-
-### مرحله 1️⃣: بررسی پیش از نصب
+`/dev/vda` فقط مثال است. در کد زیر `REPLACE_WITH_TRUSTED_ZIP_SHA256` را با Hash معتبر 64 کاراکتری عوض کنید؛ اگر آن را تغییر ندهید، برنامه متوقف می‌شود.
 
 ```bash
-# بررسی مجازی‌سازی
-cat /proc/cpuinfo | grep -E '(vmx|svm)'
-free -h
-df -h
+sudo bash script.sh \
+  --version 7.23.5 \
+  --disk /dev/vda \
+  --sha256 REPLACE_WITH_TRUSTED_ZIP_SHA256 \
+  --dry-run
 ```
 
-### مرحله 2️⃣: دانلود و اجرا
+Dry-run فایل موقت دانلود می‌کند و بعد پاک می‌کند؛ صفر بودن کد خروج، تست بوت یا شبکه نیست. اجرای نصب نهایی دانلود و بررسی را دوباره انجام می‌دهد.
+
+### ۵. نصب نهایی؛ مخرب و غیرقابل بازگشت بدون بکاپ
+
+فقط پس از Dry-run موفق، بررسی دیسک و آماده‌بودن کنسول:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-ubuntu/main/install.sh -o mikrotik-install.sh
-sudo bash mikrotik-install.sh
+sudo bash script.sh \
+  --version 7.23.5 \
+  --disk /dev/vda \
+  --sha256 REPLACE_WITH_TRUSTED_ZIP_SHA256 \
+  --console-ready
 ```
 
-### مرحله 3️⃣: انتخاب نسخه
+برنامه از شما می‌خواهد عبارت زیر را عیناً تایپ کنید:
 
-```
-╔════════════════════════════════════════╗
-║   نصب MikroTik RouterOS CHR          ║
-╚════════════════════════════════════════╝
-
- [1] RouterOS 6.45   (پایدار)
- [2] RouterOS 6.46   (پایدار)
- [3] RouterOS 6.47   (پایدار)
- [4] RouterOS 6.48   (بلندمدت)
- [5] RouterOS 7.1    (پایدار)
- [6] RouterOS 7.6    (پایدار)
- [7] RouterOS 7.11   (پایدار)
- [8] RouterOS 7.14   (پایدار)
- [9] RouterOS 7.20.6 (جدیدترین)
-
-شماره را وارد کنید [1-9]:
+```text
+ERASE /dev/vda INSTALL 7.23.5
 ```
 
-### مرحله 4️⃣: پیشرفت نصب
+`--console-ready` به‌تنهایی اجازه نوشتن نیست؛ تأیید تعاملی جداگانه اجباری است. گزینه `--yes` وجود ندارد. بعد از موفقیت نوشتن و Read-back، رسانه Rescue را از پنل جدا کرده و از دیسک هدف بوت کنید. اگر نوشتن خطا داد، بوت نکنید؛ در Rescue بمانید و Restore یا نصب مجدد انجام دهید.
 
-```
-[✓] دانلود RouterOS CHR
-[✓] بررسی checksum
-[✓] آماده‌سازی دیسک
-[✓] نوشتن ایمیج
-[✓] پیکربندی شبکه
-[✓] تنظیم بوت
+<a id="network"></a>
+## اولین بوت، رمز عبور و شبکه
 
-✅ نصب موفق!
+از کنسول مستقل وارد CHR شوید و فوراً رمز قوی تعیین کنید؛ برای ایمیج خام رسمی، مستندات MikroTik کاربر اولیه `admin` بدون رمز را ذکر می‌کند. به SSH عمومی بدون رمز تکیه نکنید. دستور `/password` رمز را تعاملی می‌گیرد و از قرارگرفتن آن در دستور جلوگیری می‌کند.
 
-اطلاعات دسترسی:
-IP:   XXX.XXX.XXX.XXX
-User: admin
-Pass: <خالی>
-```
-
----
-
-## ⚙️ پیکربندی اولیه
-
-### 🔐 اولین ورود
-
-```bash
-ssh admin@YOUR_SERVER_IP
-```
-
-### 🎯 گام‌های ضروری
-
-#### 1️⃣ تنظیم رمز عبور
-
-```bash
-/user set admin password=YOUR_STRONG_PASSWORD
-```
-
-#### 2️⃣ پیکربندی شبکه
-
-```bash
+```routeros
+/password
 /interface print
-/ip address add address=192.168.1.1/24 interface=ether1
-/ip route add gateway=192.168.1.254
-/ip dns set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
+/ip address print
+/ip route print
+/ip dhcp-client print
 ```
 
-#### 3️⃣ فعال‌سازی NAT
+IP، Gateway و Interface واقعی را از پنل خودتان بگیرید؛ `ether1`، DHCP، شبکه `/24` یا Gateway داخل subnet برای همه VPSها یکسان نیست. برای IPهای `/32`، Gateway خارج subnet، VLAN یا چند کارت شبکه باید تنظیم مخصوص ارائه‌دهنده انجام شود. این موارد توسط نصب‌کننده تولید یا Import نمی‌شوند.
+
+برای نمونه **فقط یک شبکه استاتیک معمولی**، پس از جایگزینی تمام Placeholderها و بررسی نبود تنظیم تکراری:
+
+```routeros
+/ip address add address=YOUR_IP/PREFIX interface=YOUR_INTERFACE
+/ip route add dst-address=0.0.0.0/0 gateway=YOUR_GATEWAY
+/ip dns set servers=YOUR_DNS_IP allow-remote-requests=no
+```
+
+این‌ها دستور RouterOS هستند، نه Bash. NAT و VPN بدون نیاز طراحی‌شده فعال نمی‌شوند. قبل از بازکردن ترافیک عمومی، سرویس‌های غیرضروری را ببندید، SSH/Winbox را به IP مدیریت محدود کنید و Firewall مناسب **IPv4 و IPv6** بسازید. بعد از هر تغییر ابتدا دسترسی جدید را از نشست دوم تست کنید و کنسول را باز نگه دارید. نسخه قبلی README، پورت SSH و Firewall ناسازگار و DNS باز داشت؛ آن نمونه‌ها حذف شده‌اند.
+
+<a id="troubleshooting"></a>
+## خطاها و بازیابی
+
+| پیام یا نشانه | اقدام |
+|---|---|
+| Missing chr_installer.py | کل ریپو را دریافت کنید؛ تنها `script.sh` کافی نیست |
+| Target or a child is mounted | Rescue بوت کنید و Mount مربوطه را پس از بررسی دستی جدا کنید؛ بررسی ایمنی را دور نزنید |
+| Active swap detected | در Rescue علت Swap فعال را بررسی و در صورت امن‌بودن خودتان غیرفعال کنید |
+| SHA256 mismatch | نسخه، نوع RAW x86-64 و Hash مربوط به ZIP را بررسی کنید؛ Hash را صرفاً برای عبور از خطا عوض نکنید |
+| خطای دانلود / HTTP 404 | وجود نسخه انتخابی و دسترسی HTTPS را بررسی کنید؛ fallback به Mirror ندارد |
+| Unsupported host / UEFI / topology | از محیط موردپذیرش یا نصب ایمیج توسط پنل استفاده کنید |
+| Write / Read-back failed | ممکن است دیسک ناقص باشد؛ از Rescue بکاپ را Restore یا نصب را پس از رفع علت تکرار کنید |
+| بوت انجام می‌شود ولی شبکه ندارید | از کنسول، MAC، Interface، IP/Prefix و Gateway تولیدی را بررسی کنید |
+| بوت نمی‌شود | تنظیم BIOS و کنترلر دیسک را با مستندات CHR تطبیق دهید؛ سپس Restore کنید |
+
+برای گزارش خطا، متن خروجی، نسخه انتخابی و نوع مجازی‌سازی را بفرستید؛ IP عمومی، Serial، اطلاعات پنل و رمز را پیش از انتشار عمومی حذف کنید. برنامه Log دائمی یا Backup خودکار نمی‌سازد.
+
+<a id="faq"></a>
+## سؤالات متداول
+
+### آیا این روش نصب میکروتیک «داخل Ubuntu» است؟
+
+خیر. Linux فقط محیط آماده‌سازی دیسک است. برای نگه‌داشتن Ubuntu، CHR را به‌صورت VM جداگانه از طریق Hypervisor نصب کنید؛ این ابزار VM نمی‌سازد.
+
+### آیا IP سرور خودکار حفظ می‌شود؟
+
+خیر. انتقال خودکار شبکه در نسخه قدیمی هم واقعاً اجرا نمی‌شد. این نسخه صریحاً تنظیم کنسولی را لازم می‌داند؛ قبل از Rescue مشخصات شبکه تولیدی را ثبت کنید.
+
+### آیا اسکریپت لایسنس CHR نصب می‌کند؟
+
+خیر. لایسنس MikroTik مستقل از مجوز MIT کد است. محدودیت‌ها، Trial و قیمت فعلی را از [مستندات رسمی CHR](https://help.mikrotik.com/docs/spaces/ROS/pages/18350234/Cloud+Hosted+Router+CHR) بررسی کنید؛ این پروژه لایسنس را دور نمی‌زند.
+
+### برای ارتقای RouterOS دوباره اسکریپت را اجرا کنم؟
+
+خیر. این ابزار نصب تازه و جایگزینی دیسک است. پس از Backup خارج از دستگاه، ارتقا را با روش رسمی RouterOS انجام دهید. اسکریپت جایگزین Package Update نیست.
+
+### تست‌ها چگونه اجرا می‌شوند؟
 
 ```bash
-/ip firewall nat add chain=srcnat action=masquerade out-interface=ether1
+bash -n script.sh install.sh
+python3 -m unittest discover -s tests -v
 ```
 
-#### 4️⃣ فایروال پایه
+تست‌ها شبکه یا دیسک واقعی را تغییر نمی‌دهند. جزئیات پوشش، نتایج و موارد تأییدنشده در [گزارش تست](docs/TESTING.md) است.
 
-```bash
-/ip firewall filter add chain=input connection-state=established,related action=accept
-/ip firewall filter add chain=input protocol=icmp action=accept
-/ip firewall filter add chain=input protocol=tcp dst-port=22 action=accept
-/ip firewall filter add chain=input action=drop
-```
+<a id="digitalvps"></a>
+## دیجیتال وی پی اس | DigitalVPS
 
----
+این پروژه در کنار خدمات سرور و منابع آموزشی **دیجیتال وی پی اس** ارائه می‌شود. برای انتخاب سرور مجازی میکروتیک و بررسی شرایط نصب CHR، به ناحیه کاربری مراجعه کنید. قیمت، موجودی، امکانات هر پلن و نوع دسترسی Rescue/Console را مستقیماً از صفحه سرویس یا پشتیبانی استعلام کنید؛ README قیمت یا SLA مستقلی وعده نمی‌دهد.
 
-## 💡 موارد استفاده واقعی
+| مرجع رسمی دیجیتال وی پی اس | کاربرد |
+|---|---|
+| [خرید سرور مجازی میکروتیک](https://client.digitalvps.ir/store/mikrotik-vps) | مسیر محصول MikroTik VPS در منوی رسمی سایت |
+| [ناحیه کاربری DigitalVPS](https://client.digitalvps.ir/) | ورود و مدیریت حساب |
+| [مرکز آموزش دیجیتال وی پی اس](https://client.digitalvps.ir/knowledgebase) | آموزش‌های لینوکس و شبکه |
+| [تیکت پشتیبانی](https://client.digitalvps.ir/supporttickets.php) | بررسی سازگاری، کنسول و شرایط سرویس |
 
-### 🌐 روتر سازمانی
+لینک‌ها از ناوبری عمومی `client.digitalvps.ir` در ۲۰۲۶-۰۹-۰۹ استخراج شده‌اند. صفحه محصول/تیکت ممکن است ورود یا مرحله انتقال داشته باشد. آموزش قدیمی سایت درباره نصب روی Ubuntu هنوز دستور تک‌خطی نسخه قبلی دارد؛ برای **این بازنویسی** دستورهای همین README معتبرند. محتوای سایت در این تغییر ویرایش نشده است.
 
-**لودبالانسینگ دو WAN:**
+## منابع و مجوز
 
-```bash
-/ip firewall mangle add chain=prerouting in-interface=lan action=mark-connection \
-    new-connection-mark=wan1_conn per-connection-classifier=both-addresses:2/0
-/ip route add gateway=WAN1_GATEWAY routing-mark=to_wan1 check-gateway=ping
-```
-
-**مزایا:**
-- ✅ کاهش 50-80% هزینه
-- ✅ جابجایی فوری
-- ✅ لودبالانسینگ
-- ✅ مقیاس‌پذیری
-
----
-
-### 🔐 سرور VPN
-
-**راه‌اندازی WireGuard:**
-
-```bash
-/interface wireguard add name=wg-server listen-port=51820
-/interface wireguard peers add interface=wg-server \
-    public-key="CLIENT_PUBLIC_KEY" \
-    allowed-address=10.10.10.2/32
-/ip address add address=10.10.10.1/24 interface=wg-server
-```
-
-**عملکرد:**
-- 📊 500+ اتصال همزمان
-- ⚡ 1-10 Gbps توان عبور
-- 🔐 رمزگذاری نظامی
-- 📱 iOS/Android/Windows
-
----
-
-## 🔐 بهترین شیوه‌های امنیتی
-
-### 1️⃣ غیرفعال کردن سرویس‌ها
-
-```bash
-/ip service disable telnet,ftp,www
-/ip service enable ssh,winbox
-/ip service set ssh port=2222
-/ip ssh set strong-crypto=yes
-```
-
-### 2️⃣ فایروال قوی
-
-```bash
-/ip firewall address-list add list=allowed-management address=YOUR_ADMIN_IP
-/ip firewall filter add chain=input src-address-list=allowed-management \
-    protocol=tcp dst-port=22,8291 action=accept place-before=0
-```
-
-### 3️⃣ مانیتورینگ
-
-```bash
-/system logging add topics=firewall,info action=memory
-/snmp set enabled=yes contact=admin@example.com
-```
-
-### 4️⃣ پشتیبان‌گیری
-
-```bash
-/system backup save name=backup-$(date +%Y%m%d)
-/system scheduler add name=daily-backup \
-    on-event="/system backup save" \
-    start-time=03:00:00 interval=1d
-```
-
----
-
-## ❓ سوالات متداول
-
-<details>
-<summary><b>🔍 آیا این اسکریپت امن است؟</b></summary>
-<br>
-
-بله! این اسکریپت:
-- ✅ متن‌باز و قابل بررسی
-- ✅ دانلود از سرورهای رسمی
-- ✅ بررسی checksum
-- ✅ استفاده در صدها سیستم
-- ✅ نگهداری فعال
-
-کد را بررسی کنید: https://github.com/Digitalvps-Ir/Mikrotik-ubuntu
-</details>
-
-<details>
-<summary><b>💰 نیاز به لایسنس دارم؟</b></summary>
-<br>
-
-**رایگان:**
-- ✅ تمام امکانات
-- ⚠️ محدود به 1 Mbps
-
-**پولی:**
-- P1: 1 Gbps - $45
-- P10: 10 Gbps - $95
-- Unlimited: نامحدود - $250
-
-خرید: https://mikrotik.com/buy
-</details>
-
-<details>
-<summary><b>🖥️ روی کدام VPS کار می‌کند؟</b></summary>
-<br>
-
-**الزامات:**
-- ✅ KVM
-- ✅ VMware ESXi
-- ❌ OpenVZ/LXC
-
-```bash
-# تست
-dmesg | grep -i kvm
-virt-what
-```
-</details>
-
-<details>
-<summary><b>🔄 چگونه ارتقا دهم؟</b></summary>
-<br>
-
-```bash
-# روش 1
-/system package update check-for-updates
-/system package update download
-/system reboot
-
-# روش 2
-sudo bash install.sh
-```
-
-⚠️ قبل از ارتقا backup بگیرید!
-</details>
-
----
-
-## 🐛 رفع مشکلات
-
-### مجازی‌سازی پشتیبانی نمی‌شود
-
-```bash
-cat /proc/cpuinfo | grep -E '(vmx|svm)'
-# راه‌حل: از KVM VPS استفاده کنید
-```
-
-### محدودیت سرعت 1Mbps
-
-```bash
-/system license print
-# راه‌حل: خرید لایسنس
-```
-
-### استفاده بالای CPU
-
-```bash
-/system resource print
-# علل: DDoS، BGP، اتصالات زیاد
-```
-
----
-
-## 📚 منابع آموزشی
-
-### رسمی
-
-| منبع | لینک |
-|:---|:---|
-| 🌐 ویکی | [wiki.mikrotik.com](https://wiki.mikrotik.com) |
-| 🎓 آکادمی | [mikrotik.com/training](https://mikrotik.com/training) |
-| 📹 یوتیوب | [MikroTik TV](https://youtube.com/MikroTikTV) |
-
-### فارسی
-
-| منبع | لینک |
-|:---|:---|
-| 📖 مستندات | [digitalvps.ir/docs](https://digitalvps.ir/docs/mikrotik) |
-| 💬 گروه | [t.me/digitalvps_group](https://t.me/digitalvps_group) |
-| 📢 کانال | [t.me/digital_vps](https://t.me/digital_vps) |
-
----
-
-## 🤝 مشارکت در پروژه
-
-### چگونه مشارکت کنیم؟
-
-1. **Fork** کنید
-2. **Branch** بسازید
-3. **Commit** کنید
-4. **Push** کنید
-5. **Pull Request** باز کنید
-
-### راهنما
-
-- پیام commit واضح
-- تست کامل
-- به‌روزرسانی مستندات
-- پیروی از سبک کد
-
----
-
-## 📜 مجوز
-
-مجوز **MIT** - [LICENSE](LICENSE)
-
----
-
-<div align="center">
-
-## 💎 هاستینگ پرمیوم MikroTik
-
-### 🚀 **VPS بهینه‌شده MikroTik**
-
-<table>
-<tr>
-<td align="center" width="20%">
-<img src="https://img.icons8.com/fluency/96/speed.png" width="64"/>
-<br><strong>KVM</strong>
-<br><small>پشتیبانی کامل</small>
-</td>
-<td align="center" width="20%">
-<img src="https://img.icons8.com/fluency/96/guarantee.png" width="64"/>
-<br><strong>99.9%</strong>
-<br><small>آپتایم</small>
-</td>
-<td align="center" width="20%">
-<img src="https://img.icons8.com/fluency/96/lightning-bolt.png" width="64"/>
-<br><strong>10Gbps</strong>
-<br><small>شبکه</small>
-</td>
-<td align="center" width="20%">
-<img src="https://img.icons8.com/fluency/96/security-checked.png" width="64"/>
-<br><strong>DDoS</strong>
-<br><small>محافظت</small>
-</td>
-<td align="center" width="20%">
-<img src="https://img.icons8.com/fluency/96/customer-support.png" width="64"/>
-<br><strong>24/7</strong>
-<br><small>پشتیبانی</small>
-</td>
-</tr>
-</table>
-
----
-
-### 📊 **پلن‌های MikroTik**
-
-<table>
-<tr>
-<td align="center" width="25%">
-<h3>🥉 پایه</h3>
-<hr>
-<p>💻 2 vCore</p>
-<p>💾 4GB RAM</p>
-<p>💿 50GB SSD</p>
-<p>🌐 1Gbps</p>
-<hr>
-<p><s>200,000 تومان</s></p>
-<h2>150,000 تومان</h2>
-<p>/ماه</p>
-<br>
-<a href="https://digitalvps.ir/mikrotik-vps?plan=basic">
-<img src="https://img.shields.io/badge/سفارش-4CAF50?style=for-the-badge" alt="سفارش"/>
-</a>
-</td>
-
-<td align="center" width="25%">
-<h3>🥈 استاندارد</h3>
-<hr>
-<p>💻 4 vCore</p>
-<p>💾 8GB RAM</p>
-<p>💿 100GB SSD</p>
-<p>🌐 1Gbps</p>
-<hr>
-<p><s>400,000 تومان</s></p>
-<h2>320,000 تومان</h2>
-<p>/ماه</p>
-<br>
-<a href="https://digitalvps.ir/mikrotik-vps?plan=standard">
-<img src="https://img.shields.io/badge/سفارش-2196F3?style=for-the-badge" alt="سفارش"/>
-</a>
-</td>
-
-<td align="center" width="25%">
-<h3>🥇 حرفه‌ای</h3>
-<p><strong>🔥 پرطرفدار</strong></p>
-<hr>
-<p>💻 8 vCore</p>
-<p>💾 16GB RAM</p>
-<p>💿 200GB SSD</p>
-<p>🌐 10Gbps</p>
-<hr>
-<p><s>800,000 تومان</s></p>
-<h2>640,000 تومان</h2>
-<p>/ماه</p>
-<br>
-<a href="https://digitalvps.ir/mikrotik-vps?plan=pro">
-<img src="https://img.shields.io/badge/سفارش-FF6B35?style=for-the-badge" alt="سفارش"/>
-</a>
-</td>
-
-<td align="center" width="25%">
-<h3>💎 سازمانی</h3>
-<hr>
-<p>💻 16 vCore</p>
-<p>💾 32GB RAM</p>
-<p>💿 500GB SSD</p>
-<p>🌐 10Gbps</p>
-<hr>
-<p><s>1,500,000 تومان</s></p>
-<h2>1,200,000 تومان</h2>
-<p>/ماه</p>
-<br>
-<a href="https://digitalvps.ir/mikrotik-vps?plan=ent">
-<img src="https://img.shields.io/badge/سفارش-9C27B0?style=for-the-badge" alt="سفارش"/>
-</a>
-</td>
-</tr>
-</table>
-
----
-
-### 🎁 **پیشنهاد ویژه!**
-
-<h2>🎉 25% تخفیف برای 3 ماه</h2>
-
-**کد تخفیف: `MIKROTIK2024`**
-
-✅ نصب رایگان MikroTik  
-✅ 20% تخفیف لایسنس  
-✅ مهاجرت رایگان  
-✅ پشتیبانی ویژه  
-✅ Backup رایگان  
-
-<a href="https://digitalvps.ir/mikrotik-vps?coupon=MIKROTIK2024">
-<img src="https://img.shields.io/badge/🚀_دریافت_تخفیف-FF4081?style=for-the-badge&logoColor=white" alt="تخفیف" height="50"/>
-</a>
-
----
-
-### 🌍 **دیتاسنترها**
-
-| مکان | شبکه | تاخیر |
-|:---|:---:|:---:|
-| 🇩🇪 آلمان | 10Gbps | <5ms |
-| 🇳🇱 هلند | 10Gbps | <5ms |
-| 🇺🇸 آمریکا | 10Gbps | <10ms |
-| 🇸🇬 سنگاپور | 10Gbps | <5ms |
-| 🇦🇪 امارات | 10Gbps | <10ms |
-
----
-
-### 🔗 **لینک‌ها**
-
-<table>
-<tr>
-<td align="center">
-<a href="https://digitalvps.ir">
-<img src="https://img.icons8.com/fluency/96/domain.png" width="48"/>
-<br><strong>وب‌سایت</strong>
-</a>
-</td>
-<td align="center">
-<a href="https://client.digitalvps.ir">
-<img src="https://img.icons8.com/fluency/96/control-panel.png" width="48"/>
-<br><strong>پنل کاربری</strong>
-</a>
-</td>
-<td align="center">
-<a href="https://status.digitalvps.ir">
-<img src="https://img.icons8.com/fluency/96/graph.png" width="48"/>
-<br><strong>وضعیت</strong>
-</a>
-</td>
-<td align="center">
-<a href="https://t.me/digital_vps">
-<img src="https://img.icons8.com/fluency/96/telegram-app.png" width="48"/>
-<br><strong>کانال</strong>
-</a>
-</td>
-<td align="center">
-<a href="https://t.me/digitalvps_group">
-<img src="https://img.icons8.com/fluency/96/chat.png" width="48"/>
-<br><strong>پشتیبانی</strong>
-</a>
-</td>
-</tr>
-</table>
-
----
-
-### 📞 **تماس**
-
-<table>
-<tr>
-<td align="center">
-<h4>📧 ایمیل</h4>
-<p>support@digitalvps.ir</p>
-</td>
-<td align="center">
-<h4>💬 تلگرام</h4>
-<p>@digitalvps_group</p>
-</td>
-<td align="center">
-<h4>📱 واتساپ</h4>
-<p>+1234567890</p>
-</td>
-</tr>
-</table>
-
----
-
-<p align="center">
-<b>🏆 بیش از 10,000 مشتری راضی</b>
-</p>
-
-<p align="center">
-<img src="https://img.shields.io/badge/⭐⭐⭐⭐⭐-4.9/5.0-yellow?style=for-the-badge" alt="امتیاز"/>
-</p>
-
-</div>
-
----
-
-<div align="center">
-
-<p align="center">
-<b>ساخته شده با ❤️ توسط تیم DigitalVps</b>
-<br>
-<sub>© 2024 DigitalVps.ir - تمامی حقوق محفوظ</sub>
-</p>
-
-<p align="center">
-<a href="https://github.com/Digitalvps-Ir/Mikrotik-ubuntu">⭐ ستاره بدهید</a> •
-<a href="https://github.com/Digitalvps-Ir/Mikrotik-ubuntu/issues">🐛 گزارش باگ</a> •
-<a href="https://github.com/Digitalvps-Ir/Mikrotik-ubuntu/issues">💡 درخواست ویژگی</a>
-</p>
-
-<p align="center">
-<a href="#-نصب-خودکار-mikrotik-chr-روی-ubuntu">⬆️ بازگشت به بالا</a>
-</p>
-
-</div>
+- [دانلود رسمی MikroTik CHR](https://mikrotik.com/download/chr)
+- [مستندات CHR و مجازی‌سازها](https://help.mikrotik.com/docs/spaces/ROS/pages/18350234/Cloud+Hosted+Router+CHR)
+- [گزارش باگ در GitHub](https://github.com/Digitalvps-Ir/Mikrotik-Ubuntu/issues)
+- کد پروژه: [MIT License](LICENSE). نرم‌افزار و نام تجاری MikroTik متعلق به صاحبان آن است؛ DigitalVPS وابسته رسمی MikroTik معرفی نمی‌شود.
