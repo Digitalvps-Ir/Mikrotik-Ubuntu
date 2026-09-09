@@ -8,6 +8,8 @@ Run `sudo bash script.sh` without arguments for the interactive menu: **1 = offl
 
 Direct example: `sudo bash script.sh --method ram --check --disk /dev/vda`. Existing arguments without `--method` still route to the offline installer.
 
+**Fewer inputs:** the menu selects a sole candidate automatically or shows numbered offline disks with size/model/serial. No manual SHA is needed. Automatic RAM preflight: `sudo bash script.sh --method ram --check`.
+
 | Starting environment | Entry point |
 |---|---|
 | Running Ubuntu, no provider Rescue | **[Experimental RAM boot path](docs/RAM-INSTALL.md)**: `ram-install.sh` |
@@ -17,7 +19,7 @@ The RAM path stages inside Ubuntu, then writes the disk from a separate RAM envi
 
 [فارسی — راهنمای نصب میکروتیک](README.md) · [DigitalVPS MikroTik VPS](https://client.digitalvps.ir/store/mikrotik-vps) · [Client area](https://client.digitalvps.ir/) · [Support](https://client.digitalvps.ir/supporttickets.php)
 
-This open-source **DigitalVPS (دیجیتال وی پی اس)** project helps Linux and network administrators prepare a virtual server disk for **MikroTik RouterOS Cloud Hosted Router**. The installer provides explicit disk selection, mandatory archive SHA256 verification, a non-writing dry run, and image-range read-back verification.
+This open-source **DigitalVPS (دیجیتال وی پی اس)** project helps Linux and network administrators prepare a virtual server disk for **MikroTik RouterOS Cloud Hosted Router**. The installer provides guarded disk selection, automatic SHA256 calculation with optional trusted reference verification, a non-writing dry run, and image-range read-back verification.
 
 > [!CAUTION]
 > This is a destructive fresh installation, not an application installed inside Ubuntu. Existing partitions and the OS on the selected disk are replaced. Keep an off-server backup and a working provider console. Never run it on a Virtualizor host node, physical hypervisor, active customer server or valuable disk.
@@ -41,7 +43,7 @@ This open-source **DigitalVPS (دیجیتال وی پی اس)** project helps Li
 |---|---|
 | Official download | HTTPS from `download.mikrotik.com`, with no redirect following |
 | Version selection | Explicit numeric RouterOS 6/7 release; no implicit latest |
-| Download verification | Mandatory user-supplied trusted SHA256 of the ZIP archive |
+| Download verification | Official HTTPS + computed SHA256; optional trusted reference via `--sha256` |
 | Archive checks | One correctly named regular image, size limits, ZIP CRC and basic boot signature |
 | Disk safeguards | Explicit whole disk, mounted-child/swap/topology checks and identity revalidation |
 | Dry run | Host, disk, download and image checks; no destination writes |
@@ -99,7 +101,11 @@ lsblk -o NAME,TYPE,SIZE,MODEL,SERIAL,MOUNTPOINT
 
 Review code before running as root; use a reviewed commit for repeatable deployment. Both `script.sh` and compatibility entry point `install.sh` need `chr_installer.py` beside them. Downloading a single script or using `curl | bash` is no longer supported.
 
-### 3. Select an exact release and trusted ZIP checksum
+### 3. Select a version and checksum mode
+
+The numbered menu offers `7.23.5`, `7.14.3`, `7.9`, `7.7`, `6.49.15`, `6.49.13` and custom input. These are fixed dated presets, not live release discovery or a security recommendation for old versions.
+
+**No SHA input is required by default.** The installer downloads from official HTTPS, computes SHA256 and validates ZIP/image structure. This computed hash is not an independent vendor checksum/signature. The manual-checksum discussion and examples below apply only when using optional `--sha256`. A supplied mismatch always fails without automatic fallback.
 
 Choose an appropriate release and **x86-64 RAW disk** archive from [MikroTik CHR downloads](https://mikrotik.com/download/chr). Supply the SHA256 of the **ZIP**, not the extracted IMG. Release number, archive type and checksum must match.
 
@@ -114,7 +120,7 @@ sha256sum chr-7.23.5.img.zip
 
 ### 4. Run a non-writing validation
 
-`/dev/vda` is only an example; select the correct disk yourself. Replace the checksum placeholder with the trusted 64-character digest; leaving it unchanged fails closed.
+`/dev/vda` is an example. The optional pinned-hash example below requires replacing its placeholder. For automatic hashing, remove the entire `--sha256` option and its value. Omitting `--disk` also selects a sole eligible disk automatically; multiple offline candidates require the menu or an explicit path.
 
 ```bash
 sudo bash script.sh \

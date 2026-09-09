@@ -63,6 +63,55 @@ def sha256_file(path):
     return digest.hexdigest()
 
 
+def archive_reference(archive, expected=None):
+    """Automatic transport-trusted digest, or an explicitly pinned reference.
+
+    The auto hash is not a vendor signature/independent authenticity check.
+    Both callers invoke this only after download_archive from the official origin.
+    """
+    actual = sha256_file(archive)
+    print("Downloaded ZIP SHA256: " + actual)
+    if expected is not None:
+        require(actual == digest_value(expected), "Archive SHA256 mismatch; stopping before disk writes.")
+        print("Verification: matched the supplied trusted ZIP checksum.")
+    else:
+        print("Verification: official HTTPS download + computed SHA256 (NOT an independent vendor checksum).")
+    return actual
+
+
+def discover_disks():
+    data = json.loads(run("lsblk", "--json", "--bytes", "--paths", "--tree", "--output",
+                         "PATH,TYPE,SIZE,MODEL,SERIAL,MOUNTPOINT"))
+    require(isinstance(data.get("blockdevices"), list), "Missing disk inventory.")
+    return [node for node in data["blockdevices"] if node.get("type") == "disk"]
+
+
+def disk_candidates(method):
+    disks = discover_disks()
+    eligible, rejected = [], []
+    for disk in disks:
+        path = disk.get("path", "")
+        try:
+            if method == "offline":
+                check_target(path)
+            else:
+                require(len(disks) == 1 and re.fullmatch(r"/dev/vd[a-z]+", path),
+                        "RAM currently needs exactly one VirtIO disk; full preflight still required.")
+            eligible.append(disk)
+        except (InstallError, OSError, ValueError) as error:
+            rejected.append((disk, str(error)))
+    return eligible, rejected
+
+
+def auto_disk(method):
+    eligible, rejected = disk_candidates(method)
+    require(len(eligible) == 1, "Automatic disk selection requires exactly one candidate; use the menu or --disk. "
+            + " | ".join(reason for _, reason in rejected))
+    disk = eligible[0]
+    print(f"Automatic disk: {disk['path']} ({int(disk['size']) / (1024 ** 3):.1f} GiB); final checks/confirmation still apply.")
+    return disk["path"]
+
+
 def check_host():
     require(os.geteuid() == 0, "Run with sudo/root (including --dry-run).")
     require(os.uname().machine == "x86_64", "Only x86-64 guests are supported.")
@@ -235,8 +284,8 @@ def deploy(image, disk, original, expected):
 def parser():
     result = argparse.ArgumentParser(description="DigitalVPS MikroTik CHR offline-disk installer (rescue/live only).")
     result.add_argument("--version", required=True, help="Exact RouterOS version; no implicit latest")
-    result.add_argument("--disk", required=True, help="Explicit unused whole disk; e.g. /dev/vda")
-    result.add_argument("--sha256", required=True, help="Trusted SHA256 of the official ZIP, not the extracted IMG")
+    result.add_argument("--disk", default="auto", help="Unused whole disk; auto selects only a sole eligible disk")
+    result.add_argument("--sha256", help="Optional trusted ZIP checksum; otherwise compute digest after official HTTPS download")
     result.add_argument("--dry-run", action="store_true", help="Validate host/disk/download/image without writing the target")
     result.add_argument("--console-ready", action="store_true", help="Acknowledge tested provider console, backup and manual network setup")
     return result
@@ -245,9 +294,12 @@ def parser():
 def main(argv=None):
     args = parser().parse_args(argv)
     version_value(args.version)
-    digest_value(args.sha256)
+    if args.sha256 is not None:
+        digest_value(args.sha256)
     require(args.dry_run or args.console_ready, "Installation requires --console-ready after verifying console and backup access.")
     check_host()
+    if args.disk == "auto":
+        args.disk = auto_disk("offline")
     original = check_target(args.disk)
     print("DigitalVPS | https://client.digitalvps.ir/")
     print(f"Target: {args.disk} | bytes: {original['size']} | model: {original.get('model')} | serial: {original.get('serial')}")
@@ -260,7 +312,8 @@ def main(argv=None):
         require(shutil.disk_usage(work).free >= MAX_ARCHIVE + 64 * MIB, "Need at least 576 MiB free temporary space before download.")
         archive, image = work / "chr.zip", work / "chr.img"
         download_archive(args.version, archive)
-        digest = extract_verified(archive, image, args.version, args.sha256)
+        reference = archive_reference(archive, args.sha256)
+        digest = extract_verified(archive, image, args.version, reference)
         require(image.stat().st_size + MIB <= int(original["size"]), "Image does not fit on target.")
         print("Archive SHA256, ZIP integrity and basic boot-sector checks passed.")
         print("Prepared image SHA256: " + digest)

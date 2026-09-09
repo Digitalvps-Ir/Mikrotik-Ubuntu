@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 import sys
+from chr_installer import InstallError, disk_candidates, version_value
 
 ROOT = Path(__file__).resolve().parent
 
@@ -26,9 +27,45 @@ def console_ack():
     return ["--console-ready"]
 
 
+VERSION_CHOICES = ("7.23.5", "7.14.3", "7.9", "7.7", "6.49.15", "6.49.13")
+
+
+def choose_version():
+    print("نسخه‌های قابل انتخاب / Version presets:")
+    for number, version in enumerate(VERSION_CHOICES, 1):
+        label = "official download-page snapshot: 2026-09-09" if number == 1 else "legacy / قدیمی؛ بررسی امنیتی لازم است"
+        print(f"{number}) {version} — {label}")
+    print("0) نسخه دلخواه / Custom exact version")
+    print("فهرست ثابت است؛ جدیدترین نسخه را تضمین نمی‌کند. موجودبودن دانلود هنگام اجرا بررسی می‌شود.")
+    choice = input("Version [1]: ").strip() or "1"
+    if choice == "0":
+        return version_value(prompt("Exact RouterOS version"))
+    if not choice.isdigit() or not 1 <= int(choice) <= len(VERSION_CHOICES):
+        raise ValueError("Invalid version selection.")
+    return VERSION_CHOICES[int(choice) - 1]
+
+
+def choose_disk(method):
+    eligible, rejected = disk_candidates(method)
+    for disk, reason in rejected:
+        print(f"Unavailable: {disk.get('path')} — {reason}")
+    if not eligible:
+        raise ValueError("No eligible disk. Mounted system disks need the RAM path; never remove disk guards.")
+    for number, disk in enumerate(eligible, 1):
+        print(f"{number}) {disk['path']} | {int(disk['size']) / (1024 ** 3):.1f} GiB | "
+              f"{disk.get('model') or '-'} | serial: {disk.get('serial') or '-'}")
+    if len(eligible) == 1:
+        print("تنها دیسک کاندید خودکار انتخاب شد؛ کنترل‌ها و تأیید نهایی همچنان اجرا می‌شوند.")
+        return eligible[0]["path"]
+    choice = prompt("Disk number (no default)")
+    if not choice.isdigit() or not 1 <= int(choice) <= len(eligible):
+        raise ValueError("Invalid disk selection.")
+    return eligible[int(choice) - 1]["path"]
+
+
 def image_options():
-    return ["--version", prompt("RouterOS version (e.g. 7.23.5)"),
-            "--sha256", prompt("Trusted ZIP SHA256 (64 hex characters; not IMG)")]
+    print("SHA256 خودکار از دانلود HTTPS رسمی محاسبه می‌شود؛ مقدار دستی لازم نیست.")
+    return ["--version", choose_version()]
 
 
 def menu():
@@ -46,7 +83,7 @@ def menu():
             return 0
         if action not in {"1", "2"}:
             raise ValueError("انتخاب نامعتبر / Invalid choice.")
-        args = ["--disk", prompt("Whole disk (e.g. /dev/vda)")] + image_options()
+        args = ["--disk", choose_disk("offline")] + image_options()
         args += ["--dry-run"] if action == "1" else console_ack()
         return launch("offline", args)
     if method == "2":
@@ -64,7 +101,7 @@ def menu():
             raise ValueError("انتخاب نامعتبر / Invalid choice.")
         args = [flags[action]]
         if action in {"1", "2", "3"}:
-            args += ["--disk", prompt("Whole disk (e.g. /dev/vda)")]
+            args += ["--disk", choose_disk("ram")]
         if action == "3":
             args += image_options()
         if action == "4":
@@ -98,7 +135,7 @@ def main(argv=None):
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (ValueError, EOFError) as error:
+    except (InstallError, OSError, ValueError, EOFError) as error:
         print(str(error), file=sys.stderr)
         sys.exit(2)
     except KeyboardInterrupt:

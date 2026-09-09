@@ -10,22 +10,24 @@ import installer_menu as ui
 
 class MenuTests(unittest.TestCase):
     def choose(self, answers):
-        with patch("builtins.input", side_effect=answers), patch("builtins.print"), patch.object(ui, "launch", return_value=0) as launch:
+        disks = ([{"path": "/dev/vda", "size": 50 * 1024 ** 3}], [])
+        with patch("builtins.input", side_effect=answers), patch("builtins.print"), \
+                patch.object(ui, "disk_candidates", return_value=disks), patch.object(ui, "launch", return_value=0) as launch:
             ui.menu()
         return launch
 
     def test_ram_check(self):
-        self.choose(["2", "1", "/dev/vda"]).assert_called_once_with("ram", ["--check", "--disk", "/dev/vda"])
+        self.choose(["2", "1"]).assert_called_once_with("ram", ["--check", "--disk", "/dev/vda"])
 
     def test_ram_probe(self):
-        self.choose(["2", "2", "/dev/vda"]).assert_called_once_with("ram", ["--prepare-probe", "--disk", "/dev/vda"])
+        self.choose(["2", "2"]).assert_called_once_with("ram", ["--prepare-probe", "--disk", "/dev/vda"])
 
-    def test_ram_install_has_hash_without_arming(self):
-        call = self.choose(["2", "3", "/dev/vda", "7.23.5", "a" * 64]).call_args.args
-        self.assertEqual(call, ("ram", ["--prepare", "--disk", "/dev/vda", "--version", "7.23.5", "--sha256", "a" * 64]))
+    def test_ram_install_uses_version_menu_without_hash_prompt_or_arming(self):
+        call = self.choose(["2", "3", "1"]).call_args.args
+        self.assertEqual(call, ("ram", ["--prepare", "--disk", "/dev/vda", "--version", "7.23.5"]))
 
     def test_offline_dry_run(self):
-        call = self.choose(["1", "1", "/dev/vda", "7.23.5", "a" * 64]).call_args.args
+        call = self.choose(["1", "1", "1"]).call_args.args
         self.assertEqual(call[0], "offline")
         self.assertIn("--dry-run", call[1])
         self.assertNotIn("--console-ready", call[1])

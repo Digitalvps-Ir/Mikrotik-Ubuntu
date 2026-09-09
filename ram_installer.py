@@ -20,7 +20,7 @@ import tempfile
 
 from chr_installer import (InstallError, MIB, check_host, digest_value,
                           download_archive, extract_verified, require, run,
-                          sha256_file, version_value)
+                          sha256_file, version_value, archive_reference, auto_disk)
 
 STAGE = Path("/boot/digitalvps-chr-ram")
 HOOK = Path("/etc/grub.d/41_digitalvps_chr_ram")
@@ -154,20 +154,19 @@ def prepare(args, info):
     probe = args.prepare_probe
     if not probe:
         version_value(args.version or "")
-        if not args.sha256:
-            require(sys.stdin.isatty(), "Provide trusted ZIP --sha256.")
-            args.sha256 = input("Trusted official ZIP SHA256 (not IMG; no bypass): ").strip()
-        digest_value(args.sha256)
+        if args.sha256 is not None:
+            digest_value(args.sha256)
     confirm_text("PREPARE RAM PROBE" if probe else f"PREPARE RAM INSTALL {info['disk']} {args.version}")
     os.umask(0o077)
     with tempfile.TemporaryDirectory(prefix="digitalvps-ram-") as temp:
         work = Path(temp)
-        image, digest, size = None, "", 0
+        image, digest, size, reference = None, "", 0, None
         if not probe:
             require(shutil.disk_usage(work).free >= 576 * MIB, "Insufficient download workspace.")
             archive, image = work / "chr.zip", work / "chr.img"
             download_archive(args.version, archive)
-            digest = extract_verified(archive, image, args.version, args.sha256)
+            reference = archive_reference(archive, args.sha256)
+            digest = extract_verified(archive, image, args.version, reference)
             size = image.stat().st_size
         require(available_memory() >= 768 * MIB + 3 * size, "Insufficient RAM for image plus initramfs/kernel headroom.")
         require(shutil.disk_usage("/boot").free >= size + 128 * MIB, "Insufficient free /boot space.")
@@ -183,7 +182,9 @@ def prepare(args, info):
             shutil.copyfile(info["kernel_path"], STAGE / "vmlinuz")
             shutil.copyfile(bundle, STAGE / "initramfs.gz")
             info = dict(info, mode="probe" if probe else "install", version=args.version,
-                        image_sha256=digest, image_size=size)
+                        image_sha256=digest, image_size=size, archive_sha256=reference,
+                        archive_verification="not-applicable" if probe else
+                        ("supplied-checksum" if args.sha256 is not None else "official-https-computed"))
             info["artifacts"] = {name: sha256_file(STAGE / name) for name in ("vmlinuz", "initramfs.gz")}
             hook = "#!/bin/sh\ncat <<'DIGITALVPS_RAM_ENTRY'\n" + grub_entry(info["boot_uuid"]) + "DIGITALVPS_RAM_ENTRY\n"
             with HOOK.open("x") as out:
@@ -269,9 +270,9 @@ def main(argv=None):
     mode = parser.add_mutually_exclusive_group(required=True)
     for flag in ("check", "prepare-probe", "prepare", "arm", "cancel"):
         mode.add_argument("--" + flag, action="store_true")
-    parser.add_argument("--disk", default="/dev/vda", help="VirtIO target; default /dev/vda, always shown before confirmation")
+    parser.add_argument("--disk", default="auto", help="VirtIO target; auto requires exactly one candidate")
     parser.add_argument("--version", help="Exact RouterOS release for --prepare")
-    parser.add_argument("--sha256", help="Trusted official ZIP SHA256; prompted if omitted for --prepare")
+    parser.add_argument("--sha256", help="Optional trusted ZIP checksum; otherwise compute after official HTTPS download")
     parser.add_argument("--console-ready", action="store_true")
     args = parser.parse_args(argv)
     require(os.geteuid() == 0, "Run with sudo/root.")
@@ -280,6 +281,8 @@ def main(argv=None):
     elif args.arm:
         arm(args)
     else:
+        if args.disk == "auto":
+            args.disk = auto_disk("ram")
         info = preflight(args.disk)
         print(json.dumps(info, indent=2))
         if args.check:

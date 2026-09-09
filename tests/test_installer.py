@@ -289,7 +289,8 @@ class WorkflowTests(unittest.TestCase):
             image.write_bytes(b"fixture")
             return "fixture-digest"
         with patch.object(installer, "check_host"), patch.object(installer, "check_target", return_value=original), \
-                patch.object(installer, "download_archive"), patch.object(installer, "extract_verified", side_effect=extract), \
+                patch.object(installer, "download_archive"), patch.object(installer, "archive_reference", return_value="a" * 64), \
+                patch.object(installer, "extract_verified", side_effect=extract), \
                 patch.object(installer, "confirm", side_effect=lambda *a: events.append("confirm")), \
                 patch.object(installer, "deploy", side_effect=lambda *a: events.append("deploy")), \
                 patch("sys.stdout", new=io.StringIO()) as output:
@@ -343,7 +344,8 @@ class WorkflowTests(unittest.TestCase):
             image.write_bytes(b"fixture")
             return "fixture-digest"
         with patch.object(installer, "check_host"), patch.object(installer, "check_target", return_value=original), \
-                patch.object(installer, "download_archive"), patch.object(installer, "extract_verified", side_effect=extract), \
+                patch.object(installer, "download_archive"), patch.object(installer, "archive_reference", return_value="a" * 64), \
+                patch.object(installer, "extract_verified", side_effect=extract), \
                 patch.object(installer, "confirm") as confirm, patch.object(installer, "deploy") as deploy, \
                 patch("sys.stdout", new=io.StringIO()) as output:
             result = installer.main(["--version", "7.14.3", "--disk", "/dev/vda", "--sha256", "a" * 64, "--dry-run"])

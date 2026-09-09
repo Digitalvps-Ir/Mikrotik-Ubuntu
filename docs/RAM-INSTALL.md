@@ -79,14 +79,14 @@ bash ram-install.sh --cancel
 
 ## ۳. آماده‌سازی نصب واقعی / Prepare the destructive install
 
-**Only after a successful probe, off-server backup and explicit acceptance of erasing this VPS.** Choose an exact release and supply a trusted SHA256 of the official x86-64 RAW **ZIP** (not the IMG). There is no checksum bypass. See the checksum discussion in the main README.
+**Only after a successful probe, off-server backup and explicit acceptance of erasing this VPS.** Choose a release from the menu or pass an exact version. SHA256 is computed automatically after official HTTPS download; this is not independent vendor authentication. Optional `--sha256` pins a trusted ZIP checksum. The example below demonstrates that optional mode.
 
 ```bash
 bash ram-install.sh --prepare --disk /dev/vda \
   --version 7.23.5 --sha256 REPLACE_WITH_TRUSTED_ZIP_SHA256
 ```
 
-`7.23.5` is an example, not a current-version guarantee. You can omit `--sha256` to be prompted for the trusted hash, not to disable verification. Type the requested `PREPARE RAM INSTALL /dev/vda 7.23.5` phrase. The image is downloaded and verified BEFORE scheduling any reboot. Preparation checks RAM/space, kernel/disk identity and GRUB syntax.
+`7.23.5` is an example, not a current-version guarantee. Omit `--sha256` and its value for automatic hashing with no prompt. Omitting `--disk` selects only a sole VirtIO disk; multiple disks remain unsupported in RAM mode. Type the requested preparation phrase. Download/image, RAM/space, kernel/disk identity and GRUB syntax checks happen before scheduling reboot.
 
 When prepared, open the console and arm:
 

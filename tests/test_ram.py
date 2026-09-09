@@ -126,7 +126,7 @@ class RamTests(unittest.TestCase):
         with patch.object(ram.os, "geteuid", return_value=0), patch.object(ram, "preflight", return_value=info()), \
                 patch.object(ram, "prepare") as prepare, patch.object(ram, "arm") as arm, \
                 patch("sys.stdout", new=io.StringIO()):
-            self.assertEqual(ram.main(["--check"]), 0)
+            self.assertEqual(ram.main(["--check", "--disk", "/dev/vda"]), 0)
         prepare.assert_not_called()
         arm.assert_not_called()
 

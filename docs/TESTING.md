@@ -24,7 +24,7 @@ The tests use `unittest`, not a third-party framework. The read-only integration
 | Check | Result / meaning |
 |---|---|
 | Bash syntax, both entry points | Passed |
-| Python unit / workflow / documentation tests | 73 tests passed (46 original + 19 RAM-path + 8 menu tests) |
+| Python unit / workflow / documentation tests | 85 tests passed, including 12 automatic-default tests |
 | Real Linux inventory-command syntax | Passed on the available runtime only |
 | Official archive download | Not executed in this restricted runtime |
 | Official CHR image extraction | Not executed; synthetic ZIP fixtures tested |
@@ -66,7 +66,7 @@ Do not label every accepted version "supported/tested" based on one successful V
 
 - `script.sh` remains offline-only. The separate experimental `ram-install.sh` stages from running Ubuntu and boots into RAM before raw disk writes; its probe must be validated first.
 - No network migration/config injection. Production addresses must be recorded before rescue and configured via console after boot.
-- No automatic checksum discovery; authenticity depends on a trusted reference digest.
+- Auto mode computes SHA256 after official HTTPS download; this is not independent vendor authentication. Optional trusted `--sha256` pinning still fails closed on mismatch. Automatic disk selection requires one candidate. Version presets are fixed and dated, not live discovery.
 - Only basic image format checks; an MBR signature alone cannot prove CHR correctness or bootability.
 - Read-back occurs through the OS after `fsync`; it is not independent storage-hardware certification.
 - No automatic backup, rollback, filesystem expansion, UEFI enablement or secure erase. The offline path never reboots; the RAM path requires manual initial reboot after arming, then automatically reboots on successful probe or verified installation.
