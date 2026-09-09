@@ -4,6 +4,10 @@
 
 ## Choose your installation path
 
+Run `sudo bash script.sh` without arguments for the interactive menu: **1 = offline/Rescue, 2 = RAM boot**. The RAM submenu offers check, probe preparation, installation preparation, arm and cancel. Selecting a method alone does not write the disk or reboot; backend confirmations still apply. `install.sh` opens the same menu.
+
+Direct example: `sudo bash script.sh --method ram --check --disk /dev/vda`. Existing arguments without `--method` still route to the offline installer.
+
 | Starting environment | Entry point |
 |---|---|
 | Running Ubuntu, no provider Rescue | **[Experimental RAM boot path](docs/RAM-INSTALL.md)**: `ram-install.sh` |

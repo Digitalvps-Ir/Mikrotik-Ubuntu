@@ -24,7 +24,7 @@ The tests use `unittest`, not a third-party framework. The read-only integration
 | Check | Result / meaning |
 |---|---|
 | Bash syntax, both entry points | Passed |
-| Python unit / workflow / documentation tests | 65 tests passed (46 original + 19 RAM-path tests) |
+| Python unit / workflow / documentation tests | 73 tests passed (46 original + 19 RAM-path + 8 menu tests) |
 | Real Linux inventory-command syntax | Passed on the available runtime only |
 | Official archive download | Not executed in this restricted runtime |
 | Official CHR image extraction | Not executed; synthetic ZIP fixtures tested |
