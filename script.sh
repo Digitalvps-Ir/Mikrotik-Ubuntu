@@ -18,14 +18,14 @@ LIVE_INITRD='/boot/chr-install.img'
 
 usage() {
     cat <<'USAGE'
-Usage: sudo bash script.sh --disk /dev/vda [--version 7.24.4] [options]
+Usage: sudo bash script.sh [--disk /dev/vda] [--version 7.24.4] [options]
 
 Default live mode starts from Ubuntu and installs on the next boot, before the
 root filesystem is mounted. Rescue mode writes an unmounted disk immediately.
 All data on the selected disk will be destroyed.
 
 Options:
-  --disk DEVICE       Whole target disk, e.g. /dev/vda, /dev/sda or /dev/nvme0n1
+  --disk DEVICE       Whole target disk; live mode auto-detects a single root disk
   --mode MODE         live (default) or rescue
   --version VERSION   Official CHR version; prompted for when omitted
   --workdir DIR       Download/extraction parent directory (default: /tmp)
@@ -86,7 +86,7 @@ rollback_live() {
 
 write_rescue() {
     # Recheck immediately before the irreversible write; rescue systems may automount.
-    if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -q '[^[:space:]]'; then
+    if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep '[^[:space:]]' >/dev/null; then
         die 'The target disk became mounted; refusing to write.'
     fi
     WRITE_STARTED=1
@@ -195,8 +195,8 @@ BOOT
 
     log 'Building dedicated one-time initramfs with the verified CHR image ...'
     mkinitramfs -d "$STAGE_DIR/config" -o "$LIVE_INITRD" "$kernel"
-    lsinitramfs "$LIVE_INITRD" | grep -Fxq 'chr-install/chr.img' || die 'CHR image is missing from the generated initramfs.'
-    lsinitramfs "$LIVE_INITRD" | grep -Fxq 'scripts/local-premount/chr-install' || die 'CHR boot script is missing from the generated initramfs.'
+    lsinitramfs "$LIVE_INITRD" | grep -Fx 'chr-install/chr.img' >/dev/null || die 'CHR image is missing from the generated initramfs.'
+    lsinitramfs "$LIVE_INITRD" | grep -Fx 'scripts/local-premount/chr-install' >/dev/null || die 'CHR boot script is missing from the generated initramfs.'
     rm -f -- "$STAGE_DIR/chr.img"
 
     cat > "$GRUB_ENTRY" <<GRUB
@@ -213,7 +213,7 @@ GRUB
     grub-mkconfig -o /boot/grub/grub.cfg >/dev/null
     grep -Fq -- '--id chr-install-once' /boot/grub/grub.cfg || die 'GRUB installer entry was not generated.'
     grub-reboot chr-install-once
-    grub-editenv - list | grep -Fxq 'next_entry=chr-install-once' || die 'GRUB one-time boot could not be verified.'
+    grub-editenv - list | grep -Fx 'next_entry=chr-install-once' >/dev/null || die 'GRUB one-time boot could not be verified.'
     log 'One-time offline installer staged. Rebooting now; use the provider console to observe the result.'
     reboot
     STAGE_ACTIVE=0
@@ -247,7 +247,7 @@ if (( ${CANCEL_LIVE:-0} )); then
 fi
 [[ $(uname -m) == x86_64 ]] || die 'This installer supports x86_64 CHR only.'
 
-for command in curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint cat cp chmod mkdir busybox; do
+for command in curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint findmnt sort cat cp chmod mkdir busybox; do
     command -v "$command" >/dev/null 2>&1 || die "Missing $command. Install curl, unzip, util-linux and coreutils in the rescue environment."
 done
 
@@ -266,6 +266,17 @@ VERSIONS
     read -r -p 'CHR version: ' VERSION
 fi
 [[ $VERSION =~ ^(6|7)\.[0-9]+(\.[0-9]+)?$ ]] || die 'Version must be a numeric RouterOS 6.x or 7.x release.'
+if [[ -z "$DISK" && $MODE == live ]]; then
+    ROOT_SOURCE=$(findmnt -n -o SOURCE /)
+    ROOT_SOURCE=${ROOT_SOURCE%%\[*}
+    if [[ $ROOT_SOURCE == /dev/* ]]; then
+        mapfile -t ROOT_DISKS < <(lsblk -snr -o PATH,TYPE "$ROOT_SOURCE" | awk '$2 == "disk" {print $1}' | sort -u)
+        if (( ${#ROOT_DISKS[@]} == 1 )); then
+            DISK=${ROOT_DISKS[0]}
+            log "Detected Ubuntu root disk: $DISK"
+        fi
+    fi
+fi
 [[ -n "$DISK" ]] || { lsblk -d -o NAME,SIZE,TYPE,MODEL >&2; die 'Pass the exact whole disk with --disk.'; }
 [[ $DISK == /dev/* ]] || die 'The disk must be an absolute /dev path.'
 DISK=$(readlink -f -- "$DISK")
@@ -274,12 +285,15 @@ DISK=$(readlink -f -- "$DISK")
 [[ $(lsblk -dn -o RO -- "$DISK" | tr -d '[:space:]') == 0 ]] || die 'The target disk is read-only.'
 case "$MODE" in
     rescue)
-        if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -q '[^[:space:]]'; then
+        if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep '[^[:space:]]' >/dev/null; then
             die 'The target disk or one of its children is mounted or in use. Boot a rescue system and unmount it first.'
         fi ;;
     live)
         command -v findmnt >/dev/null 2>&1 || die 'Missing findmnt (util-linux).'
-        lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -Fxq '/' || die 'Live mode requires the selected disk to contain the current Ubuntu root filesystem.'
+        lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -Fx '/' >/dev/null || die 'Live mode requires the selected disk to contain the current Ubuntu root filesystem.'
+        if mountpoint -q /boot; then
+            lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -Fx '/boot' >/dev/null || die 'The /boot filesystem is on another disk; this live workflow cannot replace only the root disk.'
+        fi
         [[ -d /etc/initramfs-tools && -d /boot/grub ]] || die 'Live mode requires Ubuntu with initramfs-tools and GRUB.'
         for command in mkinitramfs lsinitramfs grub-mkconfig grub-reboot grub-editenv grub-probe reboot; do
             command -v "$command" >/dev/null 2>&1 || die "Missing $command; live mode requires initramfs-tools and GRUB."
