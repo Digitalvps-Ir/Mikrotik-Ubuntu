@@ -6,10 +6,11 @@ umask 077
 REPOSITORY='https://download.mikrotik.com/routeros'
 VERSION=''
 DISK=''
-MODE='live'
-WORK_BASE='/tmp'
+MODE='auto'
+WORK_BASE=''
 EXPECTED_SHA256=''
 YES_ERASE=0
+LIST_VERSIONS=0
 WRITE_STARTED=0
 WORK_DIR=''
 STAGE_ACTIVE=0
@@ -21,26 +22,186 @@ usage() {
     cat <<'USAGE'
 Digitalvps.ir | MikroTik CHR installer
 
-Usage: sudo bash script.sh [--disk /dev/vda] [--version 7.24.4] [options]
+Usage: sudo bash script.sh [options]
 
-Default live mode starts from Ubuntu and installs on the next boot, before the
-root filesystem is mounted. Rescue mode writes an unmounted disk immediately.
+Run without arguments for guided, automatic setup. Running Ubuntu uses a
+one-time offline boot; a RAM-based rescue system writes an unmounted disk.
 All data on the selected disk will be destroyed.
 
 Options:
-  --disk DEVICE       Whole target disk; live mode auto-detects a single root disk
-  --mode MODE         live (default) or rescue
-  --version VERSION   Official CHR version; prompted for when omitted
-  --workdir DIR       Download/extraction parent directory (default: /tmp)
+  --disk DEVICE       Whole target disk; detected or selected when omitted
+  --mode MODE         auto (default), live, or rescue
+  --version VERSION   Numeric official CHR version; menu when omitted
+  --list-versions     Show official stable and long-term releases and exit
+  --workdir DIR       Download/extraction parent (auto-selected when omitted)
   --sha256 HASH       Expected SHA-256 of the downloaded ZIP, if known
   --yes-erase         Skip the interactive exact-disk confirmation
   --cancel-live      Remove a staged live installer before reboot
   -h, --help          Show this help
 
-Live mode stages a one-time GRUB boot and reboots automatically. Rescue mode
-requires disabling rescue and power cycling from the provider panel afterward.
+Missing packages are installed on Ubuntu/Debian automatically. Live mode
+stages a one-time GRUB boot and reboots. Rescue mode requires disabling rescue
+and power cycling from the provider panel afterward.
 Neither mode configures RouterOS networking.
 USAGE
+}
+
+# Used only when the official download page is unavailable. Refresh this list
+# when the project is released; normal interactive runs read the live catalog.
+FALLBACK_RELEASES=(
+    'stable|7.24.4' 'stable|7.24.3' 'stable|7.24.2'
+    'stable|7.24.1' 'stable|7.24'
+    'longTerm|7.23.7' 'longTerm|7.23.6' 'longTerm|7.23.5'
+    'longTerm|7.23.4' 'longTerm|7.21.5' 'longTerm|7.21.4'
+    'longTerm|7.20.8' 'longTerm|7.20.7'
+    'longTerm|6.49.22' 'longTerm|6.49.21' 'longTerm|6.49.20'
+    'longTerm|6.49.19' 'longTerm|6.49.18'
+)
+RELEASES=()
+STABLE_SERIES=''
+
+ensure_commands() {
+    local command package
+    local packages=()
+    for command in "$@"; do
+        command -v "$command" >/dev/null 2>&1 && continue
+        case "$command" in
+            curl) package=curl ;;
+            python3) package=python3 ;;
+            unzip) package=unzip ;;
+            sfdisk) package=fdisk ;;
+            lsblk|blockdev|mountpoint|findmnt|swapon) package=util-linux ;;
+            grep) package='grep' ;;
+            awk) package=mawk ;;
+            busybox) package=busybox ;;
+            mkinitramfs|lsinitramfs) package=initramfs-tools ;;
+            grub-mkconfig|grub-mkrelpath|grub-reboot|grub-editenv|grub-probe) package=grub-common ;;
+            reboot) package=systemd-sysv ;;
+            *) package=coreutils ;;
+        esac
+        if [[ ! " ${packages[*]} " == *" $package "* ]]; then
+            packages+=("$package")
+        fi
+    done
+    ((${#packages[@]})) || return 0
+    [[ -r /etc/os-release ]] || die "Missing ${packages[*]}; automatic package setup needs Ubuntu/Debian."
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    [[ " ${ID:-} ${ID_LIKE:-} " == *' ubuntu '* || " ${ID:-} ${ID_LIKE:-} " == *' debian '* ]] ||
+        die "Missing ${packages[*]}; automatic package setup supports Ubuntu/Debian only."
+    command -v apt-get >/dev/null 2>&1 || die 'apt-get is unavailable in this environment.'
+    log "Installing missing tools: ${packages[*]}"
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${packages[@]}"
+    for command in "$@"; do
+        command -v "$command" >/dev/null 2>&1 || die "Package installation did not provide $command."
+    done
+}
+
+load_releases() {
+    local html_file
+    RELEASES=("${FALLBACK_RELEASES[@]}")
+    CATALOG_SOURCE='fallback'
+    command -v curl >/dev/null 2>&1 || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    html_file=$(mktemp)
+    if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 25 \
+        --proto '=https' --tlsv1.2 'https://mikrotik.com/download/chr' -o "$html_file"; then
+        local online=()
+        mapfile -t online < <(python3 - "$html_file" <<'PY'
+import html
+import json
+import re
+import sys
+
+page = open(sys.argv[1], encoding='utf-8').read()
+results = []
+for raw in re.findall(r'wire:snapshot="([^"]+)"', page):
+    data = json.loads(html.unescape(raw)).get('data', {})
+    if not isinstance(data, dict):
+        continue
+    if data.get('channel') != 'longTerm' or 'releases' not in data:
+        continue
+    for wrapped in data['releases'][0]:
+        release = wrapped[0]
+        version = release.get('version', '')
+        if release.get('archived') or not re.fullmatch(r'[67]\.\d+(?:\.\d+)?', version):
+            continue
+        channels = release['channels'][0]
+        for channel in ('stable', 'longTerm'):
+            if channels.get(channel):
+                results.append(f'{channel}|{version}')
+                break
+    break
+for result in results:
+    print(result)
+PY
+)
+        if ((${#online[@]} >= 10)); then
+            RELEASES=("${online[@]}")
+            CATALOG_SOURCE='online'
+        else
+            CATALOG_SOURCE='fallback'
+        fi
+    else
+        CATALOG_SOURCE='fallback'
+    fi
+    rm -f -- "$html_file"
+}
+
+show_releases() {
+    local record channel version index=1 previous=''
+    MENU_VERSIONS=()
+    for record in "${RELEASES[@]}"; do
+        IFS='|' read -r channel version <<< "$record"
+        if [[ ${1:-featured} == featured && $channel == stable &&
+              $version != "$STABLE_SERIES" && $version != "$STABLE_SERIES".* ]]; then
+            continue
+        fi
+        if [[ $channel != "$previous" ]]; then
+            printf '\n%s:\n' "$([[ $channel == stable ]] && printf 'Stable' || printf 'Long-term')"
+            previous=$channel
+        fi
+        printf '  %2d) %s%s\n' "$index" "$version" "$([[ $version == 6.* ]] && printf ' (v6 legacy)' || true)"
+        MENU_VERSIONS+=("$version")
+        ((index += 1))
+    done
+}
+
+choose_version() {
+    local answer
+    load_releases
+    STABLE_SERIES=''
+    DEFAULT_VERSION=''
+    for answer in "${RELEASES[@]}"; do
+        if [[ $answer == stable\|* ]]; then
+            DEFAULT_VERSION=${answer#*|}
+            STABLE_SERIES=$DEFAULT_VERSION
+            STABLE_SERIES=${STABLE_SERIES%.*}
+            break
+        fi
+    done
+    [[ -n $STABLE_SERIES ]] || die 'No stable CHR release was found.'
+    log "Official release catalog: ${CATALOG_SOURCE:-fallback}."
+    show_releases featured >&2
+    printf '\nPress Enter for %s, type a number or version, or a for all releases.\n' "$DEFAULT_VERSION" >&2
+    while :; do
+        read -r -p 'CHR version: ' answer
+        if [[ -z $answer ]]; then VERSION=$DEFAULT_VERSION; return; fi
+        if [[ $answer == a || $answer == A ]]; then
+            show_releases all >&2
+            continue
+        fi
+        if [[ $answer =~ ^[0-9]+$ && $answer -ge 1 && $answer -le ${#MENU_VERSIONS[@]} ]]; then
+            VERSION=${MENU_VERSIONS[answer-1]}
+            return
+        fi
+        if [[ $answer =~ ^(6|7)\.[0-9]+(\.[0-9]+)?$ ]]; then
+            VERSION=$answer
+            return
+        fi
+        log 'Choose a listed number, enter a numeric 6.x/7.x version, or a to show all.'
+    done
 }
 
 die() {
@@ -87,11 +248,29 @@ rollback_live() {
     fi
 }
 
+assert_rescue_unused() {
+    local swap device kernel_name
+    if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep '[^[:space:]]' >/dev/null; then
+        die 'The target disk or one of its children is mounted; refusing to write.'
+    fi
+    while IFS= read -r swap; do
+        [[ -n $swap ]] || continue
+        if lsblk -nr -o PATH -- "$DISK" | grep -Fx -- "$swap" >/dev/null; then
+            die 'A partition on the target disk is active swap; refusing to write.'
+        fi
+    done < <(swapon --noheadings --raw --show=NAME || true)
+    while IFS= read -r kernel_name; do
+        [[ -n $kernel_name ]] || continue
+        device="/sys/class/block/$kernel_name/holders"
+        if [[ -d $device && -n $(ls -A -- "$device") ]]; then
+            die "Target disk has an active device-mapper, RAID, or other holder: $kernel_name"
+        fi
+    done < <(lsblk -nr -o KNAME -- "$DISK")
+}
+
 write_rescue() {
     # Recheck immediately before the irreversible write; rescue systems may automount.
-    if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep '[^[:space:]]' >/dev/null; then
-        die 'The target disk became mounted; refusing to write.'
-    fi
+    assert_rescue_unused
     WRITE_STARTED=1
     log 'Clearing the last MiB to remove stale backup partition metadata ...'
     dd if=/dev/zero of="$DISK" bs=512 seek="$((DISK_SIZE / 512 - 2048))" count=2048 conv=fsync status=none
@@ -125,21 +304,21 @@ download_archive() {
 }
 
 stage_live() {
-    local kernel boot_uuid boot_prefix kernel_args image_hash disk_head_hash
+    local kernel boot_uuid kernel_path initrd_path kernel_args image_hash disk_head_hash boot_free
     kernel=$(uname -r)
     [[ -f "/boot/vmlinuz-$kernel" ]] || die "Running kernel image not found: /boot/vmlinuz-$kernel"
     boot_uuid=$(grub-probe --target=fs_uuid /boot)
     [[ $boot_uuid =~ ^[A-Za-z0-9-]+$ ]] || die 'Could not obtain a safe GRUB boot filesystem UUID.'
-    if mountpoint -q /boot; then
-        boot_prefix=''
-    else
-        boot_prefix='/boot'
-    fi
+    kernel_path=$(grub-mkrelpath "/boot/vmlinuz-$kernel")
+    [[ $kernel_path =~ ^/[A-Za-z0-9_./+@-]+$ ]] || die 'Could not obtain a safe GRUB kernel path.'
     kernel_args=$(cat /proc/cmdline)
     printf '%s\n' "$kernel_args" | grep -Eq '^[A-Za-z0-9_./:=,@+%?! -]+$' || die 'Kernel command line contains unsupported characters; use rescue mode.'
     [[ " $kernel_args " != *' chr_install_once='* ]] || die 'A CHR installer boot argument is already present.'
     image_hash=$(sha256sum "$IMAGE" | cut -d' ' -f1)
     disk_head_hash=$(dd if="$DISK" bs=4096 count=1 status=none | sha256sum | cut -d' ' -f1)
+    boot_free=$(df -B1 --output=avail -- /boot | awk 'NR == 2 {print $1}')
+    [[ $boot_free =~ ^[0-9]+$ ]] || die 'Could not measure free space in /boot.'
+    (( boot_free >= IMAGE_SIZE + 67108864 )) || die 'Not enough free space in /boot for the one-time installer image.'
 
     mkdir -m 700 -- "$STAGE_DIR"
     printf 'chr-install\n' > "$STAGE_DIR/marker"
@@ -218,6 +397,8 @@ BOOT
     mkinitramfs -d "$STAGE_DIR/config" -o "$LIVE_INITRD" "$kernel"
     lsinitramfs "$LIVE_INITRD" | grep -Fx 'chr-install/chr.img' >/dev/null || die 'CHR image is missing from the generated initramfs.'
     lsinitramfs "$LIVE_INITRD" | grep -Fx 'scripts/local-premount/chr-install' >/dev/null || die 'CHR boot script is missing from the generated initramfs.'
+    initrd_path=$(grub-mkrelpath "$LIVE_INITRD")
+    [[ $initrd_path =~ ^/[A-Za-z0-9_./+@-]+$ ]] || die 'Could not obtain a safe GRUB initramfs path.'
     rm -f -- "$STAGE_DIR/chr.img"
 
     cat > "$GRUB_ENTRY" <<GRUB
@@ -225,14 +406,15 @@ BOOT
 cat <<'ENTRY'
 menuentry 'Install MikroTik CHR (one time)' --id chr-install-once {
     search --no-floppy --fs-uuid --set=root $boot_uuid
-    linux $boot_prefix/vmlinuz-$kernel $kernel_args chr_install_once=1
-    initrd $boot_prefix/chr-install.img
+    linux $kernel_path $kernel_args chr_install_once=1
+    initrd $initrd_path
 }
 ENTRY
 GRUB
     chmod 700 "$GRUB_ENTRY"
     grub-mkconfig -o /boot/grub/grub.cfg >/dev/null
     grep -Fq -- '--id chr-install-once' /boot/grub/grub.cfg || die 'GRUB installer entry was not generated.'
+    grep -Fq 'set default="${next_entry}"' /boot/grub/grub.cfg || die 'GRUB is not configured to honor one-time boot entries.'
     grub-reboot chr-install-once
     grub-editenv - list | grep -Fx 'next_entry=chr-install-once' >/dev/null || die 'GRUB one-time boot could not be verified.'
     log 'One-time offline installer staged. Rebooting now; use the provider console to observe the result.'
@@ -253,52 +435,88 @@ while (($#)); do
             esac
             shift 2 ;;
         --yes-erase) YES_ERASE=1; shift ;;
+        --list-versions) LIST_VERSIONS=1; shift ;;
         --cancel-live) CANCEL_LIVE=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) die "Unknown argument: $1" ;;
     esac
 done
 
+[[ $MODE == auto || $MODE == live || $MODE == rescue ]] || die '--mode must be auto, live, or rescue.'
+if (( LIST_VERSIONS )); then
+    load_releases
+    STABLE_SERIES=''
+    printf 'Catalog source: %s\n' "$CATALOG_SOURCE"
+    show_releases all
+    exit 0
+fi
 (( EUID == 0 )) || die 'Run as root (sudo bash script.sh ...).'
-[[ $MODE == live || $MODE == rescue ]] || die '--mode must be live or rescue.'
 if (( ${CANCEL_LIVE:-0} )); then
     rollback_live
     log 'Staged live installer removed.'
     exit 0
 fi
 [[ $(uname -m) == x86_64 ]] || die 'This installer supports x86_64 CHR only.'
+if [[ -e /.dockerenv || -e /run/.containerenv ]] ||
+   { command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --container --quiet; }; then
+    die 'Run inside the VPS guest, not a container or the virtualization host.'
+fi
+ensure_commands lsblk findmnt readlink awk sort grep
 
-for command in curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint findmnt sort cat cp chmod mkdir busybox sleep; do
-    command -v "$command" >/dev/null 2>&1 || die "Missing $command. Install curl, unzip, util-linux and coreutils in the rescue environment."
-done
+ROOT_SOURCE=$(findmnt -n -o SOURCE / || true)
+ROOT_SOURCE=${ROOT_SOURCE%%\[*}
+ROOT_DISKS=()
+if [[ $ROOT_SOURCE == /dev/* ]]; then
+    mapfile -t ROOT_DISKS < <(lsblk -snr -o PATH,TYPE "$ROOT_SOURCE" | awk '$2 == "disk" {print $1}' | sort -u)
+fi
+if [[ $MODE == auto ]]; then
+    if [[ $ROOT_SOURCE == /dev/* && -r /etc/os-release ]] &&
+       grep -Eq '^ID=ubuntu$|^ID="ubuntu"$' /etc/os-release; then
+        MODE=live
+    else
+        MODE=rescue
+    fi
+    log "Detected installation mode: $MODE"
+fi
+ensure_commands curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint findmnt sort cat cp chmod mkdir sleep df swapon
+if [[ $MODE == live ]]; then
+    ensure_commands busybox mkinitramfs lsinitramfs grub-mkconfig grub-mkrelpath grub-reboot grub-editenv grub-probe reboot
+fi
 
 if [[ -d /sys/firmware/efi ]]; then
     die 'This VM booted in UEFI mode. This RAW CHR workflow requires Legacy BIOS; change the VM firmware or use a provider-supported CHR image.'
 fi
 
 if [[ -z "$VERSION" ]]; then
-    cat >&2 <<'VERSIONS'
-Suggested official releases (verified 2026-09-27):
-  7.24.4  stable
-  7.23.7  long-term
-  6.49.22 long-term (legacy)
-Older or newer official release numbers may also be entered.
-VERSIONS
-    read -r -p 'CHR version: ' VERSION
+    ensure_commands python3
+    [[ -t 0 ]] || die 'Pass --version for unattended use, or run with an interactive terminal.'
+    choose_version
 fi
 [[ $VERSION =~ ^(6|7)\.[0-9]+(\.[0-9]+)?$ ]] || die 'Version must be a numeric RouterOS 6.x or 7.x release.'
-if [[ -z "$DISK" && $MODE == live ]]; then
-    ROOT_SOURCE=$(findmnt -n -o SOURCE /)
-    ROOT_SOURCE=${ROOT_SOURCE%%\[*}
-    if [[ $ROOT_SOURCE == /dev/* ]]; then
-        mapfile -t ROOT_DISKS < <(lsblk -snr -o PATH,TYPE "$ROOT_SOURCE" | awk '$2 == "disk" {print $1}' | sort -u)
-        if (( ${#ROOT_DISKS[@]} == 1 )); then
-            DISK=${ROOT_DISKS[0]}
-            log "Detected Ubuntu root disk: $DISK"
+if [[ -z "$DISK" ]]; then
+    if [[ $MODE == live && ${#ROOT_DISKS[@]} -eq 1 ]]; then
+        DISK=${ROOT_DISKS[0]}
+        log "Detected Ubuntu root disk: $DISK"
+    elif [[ $MODE == rescue ]]; then
+        CANDIDATE_DISKS=()
+        while IFS= read -r candidate; do
+            [[ -n $candidate ]] || continue
+            [[ $(lsblk -dn -o RO -- "$candidate" | tr -d '[:space:]') == 0 ]] || continue
+            if ! lsblk -nr -o MOUNTPOINTS -- "$candidate" | grep '[^[:space:]]' >/dev/null; then
+                CANDIDATE_DISKS+=("$candidate")
+            fi
+        done < <(lsblk -dn -o PATH,TYPE | awk '$2 == "disk" {print $1}')
+        if ((${#CANDIDATE_DISKS[@]} == 1)); then
+            DISK=${CANDIDATE_DISKS[0]}
+            log "Detected the only unmounted target disk: $DISK"
         fi
     fi
 fi
-[[ -n "$DISK" ]] || { lsblk -d -o NAME,SIZE,TYPE,MODEL >&2; die 'Pass the exact whole disk with --disk.'; }
+if [[ -z "$DISK" ]]; then
+    lsblk -d -o PATH,SIZE,TYPE,RO,MODEL >&2
+    [[ -t 0 ]] || die 'Pass the exact whole target disk with --disk.'
+    read -r -p 'Whole target disk (for example /dev/vda): ' DISK
+fi
 [[ $DISK == /dev/* ]] || die 'The disk must be an absolute /dev path.'
 DISK=$(readlink -f -- "$DISK")
 [[ -b "$DISK" ]] || die "Not a block device: $DISK"
@@ -306,26 +524,38 @@ DISK=$(readlink -f -- "$DISK")
 [[ $(lsblk -dn -o RO -- "$DISK" | tr -d '[:space:]') == 0 ]] || die 'The target disk is read-only.'
 case "$MODE" in
     rescue)
-        if lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep '[^[:space:]]' >/dev/null; then
-            die 'The target disk or one of its children is mounted or in use. Boot a rescue system and unmount it first.'
-        fi ;;
+        assert_rescue_unused ;;
     live)
+        (( ${#ROOT_DISKS[@]} == 1 )) || die 'Live mode requires one unambiguous Ubuntu root disk.'
         command -v findmnt >/dev/null 2>&1 || die 'Missing findmnt (util-linux).'
         lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -Fx '/' >/dev/null || die 'Live mode requires the selected disk to contain the current Ubuntu root filesystem.'
         if mountpoint -q /boot; then
             lsblk -nr -o MOUNTPOINTS -- "$DISK" | grep -Fx '/boot' >/dev/null || die 'The /boot filesystem is on another disk; this live workflow cannot replace only the root disk.'
         fi
         [[ -d /etc/initramfs-tools && -d /boot/grub ]] || die 'Live mode requires Ubuntu with initramfs-tools and GRUB.'
-        for command in mkinitramfs lsinitramfs grub-mkconfig grub-reboot grub-editenv grub-probe reboot; do
-            command -v "$command" >/dev/null 2>&1 || die "Missing $command; live mode requires initramfs-tools and GRUB."
-        done
         (( $(awk '/MemTotal:/ {print $2}' /proc/meminfo) >= 1048576 )) || die 'Live mode requires at least 1 GiB RAM to carry the image in initramfs.'
         [[ ! -e "$STAGE_DIR" && ! -e "$GRUB_ENTRY" && ! -e "$LIVE_INITRD" ]] || die 'A live installation is already staged. Use --cancel-live to remove it first.' ;;
 esac
 
+if [[ -z "$WORK_BASE" ]]; then
+    best_free=0
+    for candidate in /var/tmp /tmp; do
+        [[ -d $candidate && -w $candidate ]] || continue
+        available=$(df -B1 --output=avail -- "$candidate" | awk 'NR == 2 {print $1}')
+        if [[ $available =~ ^[0-9]+$ ]] && (( available > best_free )); then
+            best_free=$available
+            WORK_BASE=$candidate
+        fi
+    done
+    (( best_free >= 536870912 )) || die 'Need at least 512 MiB free work space; pass --workdir on another safe filesystem.'
+    log "Selected work directory: $WORK_BASE"
+fi
 [[ -d "$WORK_BASE" && -w "$WORK_BASE" ]] || die "Work directory is not writable: $WORK_BASE"
 WORK_BASE=$(readlink -f -- "$WORK_BASE")
 [[ -n "$WORK_BASE" && "$WORK_BASE" != / ]] || die 'Invalid work directory.'
+available=$(df -B1 --output=avail -- "$WORK_BASE" | awk 'NR == 2 {print $1}')
+[[ $available =~ ^[0-9]+$ ]] || die 'Could not measure free work space.'
+(( available >= 536870912 )) || die 'Work directory needs at least 512 MiB free space.'
 if [[ -n "$EXPECTED_SHA256" && ! $EXPECTED_SHA256 =~ ^[[:xdigit:]]{64}$ ]]; then
     die '--sha256 requires exactly 64 hexadecimal characters.'
 fi
