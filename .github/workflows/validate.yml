@@ -59,6 +59,7 @@ jobs:
   images:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         version: ['7.24.4', '7.23.7', '6.49.22']
     steps:
@@ -69,9 +70,20 @@ jobs:
           set -euo pipefail
           archive="chr-${VERSION}.img.zip"
           image="chr-${VERSION}.img"
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 900 \
-            "https://download.mikrotik.com/routeros/${VERSION}/${archive}" -o "$archive"
-          unzip -tq "$archive"
+          downloaded=0
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --location --silent --show-error --connect-timeout 20 \
+              --max-time 300 --continue-at - \
+              "https://download.mikrotik.com/routeros/${VERSION}/${archive}" -o "$archive"; then
+              if unzip -tq "$archive"; then
+                downloaded=1
+                break
+              fi
+              rm -f "$archive"
+            fi
+            sleep "$((attempt * 2))"
+          done
+          test "$downloaded" -eq 1
           test "$(unzip -Z -1 "$archive")" = "$image"
           unzip -p "$archive" "$image" > "$image"
           sfdisk -d "$image"
