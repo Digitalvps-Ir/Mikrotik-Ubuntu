@@ -71,7 +71,7 @@ ensure_commands() {
             unzip) package=unzip ;;
             sfdisk) package=fdisk ;;
             lsblk|blockdev|mountpoint|findmnt|swapon) package=util-linux ;;
-            grep) package=grep ;;
+            grep) package='grep' ;;
             awk) package=mawk ;;
             busybox) package=busybox ;;
             mkinitramfs|lsinitramfs) package=initramfs-tools ;;
