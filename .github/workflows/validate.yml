@@ -1,0 +1,24 @@
+name: Validate CHR installer
+
+on:
+  push:
+    paths:
+      - script.sh
+      - .github/workflows/validate.yml
+  pull_request:
+    paths:
+      - script.sh
+      - .github/workflows/validate.yml
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Bash syntax
+        run: bash -n script.sh
+      - name: Check shell script
+        run: shellcheck -S warning script.sh
+      - name: Check safe help path
+        run: bash script.sh --help
+
