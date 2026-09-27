@@ -19,6 +19,22 @@ jobs:
         run: bash -n script.sh
       - name: Check shell script
         run: shellcheck -S warning script.sh
+      - name: Check embedded initramfs scripts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          source = Path('script.sh').read_text()
+          for marker in ('HOOK', 'BOOT'):
+              match = re.search(r"<<'" + marker + r"'\n(.*?)\n" + marker + r"\n", source, re.S)
+              if not match:
+                  raise SystemExit(f'Missing {marker} script')
+              path = Path('/tmp/chr-' + marker.lower() + '.sh')
+              path.write_text(match.group(1) + '\n')
+              subprocess.run(['dash', '-n', str(path)], check=True)
+              subprocess.run(['shellcheck', '-S', 'warning', '-s', 'sh', str(path)], check=True)
+          PY
       - name: Check safe help path
         run: bash script.sh --help
 
