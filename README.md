@@ -43,15 +43,17 @@ apt-get install -y curl unzip util-linux coreutils busybox initramfs-tools grub2
 
 ## نصب معمولی از Ubuntu
 
-این روش برای VPSهای Virtualizor که Rescue ندارند مناسب است. ابتدا با `lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS,MODEL` نام **کل دیسکی که Ubuntu روی آن است** را پیدا کنید؛ پارتیشن‌هایی مانند `/dev/vda1` مجاز نیستند. اسکریپت را دریافت و پیش از اجرا بررسی کنید:
+این روش برای VPSهای Virtualizor که Rescue ندارند مناسب است. اسکریپت در نصب‌های تک‌دیسکی دیسک حامل ریشهٔ Ubuntu را تشخیص می‌دهد و نام آن را برای تأیید نشان می‌دهد. در نصب چنددیسکی، نام **کل دیسک** را با `lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS,MODEL` بررسی و با `--disk` مشخص کنید؛ پارتیشن‌هایی مانند `/dev/vda1` مجاز نیستند. اسکریپت را دریافت و پیش از اجرا بررسی کنید:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
 less script.sh
-sudo bash script.sh --disk /dev/vda --version 7.24.4
+sudo bash script.sh --version 7.24.4
 ```
 
 در تأیید تعاملی باید دقیقاً عبارت نشان‌داده‌شده، مانند `ERASE /dev/vda`، را وارد کنید. اسکریپت ایمیج را دانلود و بررسی می‌کند، یک ورودی GRUB یک‌بارمصرف می‌سازد و سپس VM را reboot می‌کند. در بوت بعدی، پیش از mount شدن Ubuntu، ایمیج روی دیسک نوشته و تأیید می‌شود و VM دوباره به CHR بوت می‌شود. فرآیند را از کنسول/VNC پنل ببینید؛ SSH Ubuntu پس از reboot قطع می‌شود.
+
+اگر دیسک به‌درستی تشخیص داده نشد، `--disk /dev/vda` را با نام واقعی دیسک وارد کنید. حتی در حالت تشخیص خودکار، تأیید دقیق نام دیسک لازم است.
 
 تا **پیش از reboot اول** می‌توانید نصب آماده‌شده را لغو کنید:
 
