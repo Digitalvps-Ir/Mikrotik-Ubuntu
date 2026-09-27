@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Replace an Ubuntu VM disk with the official MikroTik CHR RAW image.
 set -Eeuo pipefail
+umask 077
 
 REPOSITORY='https://download.mikrotik.com/routeros'
 VERSION=''
