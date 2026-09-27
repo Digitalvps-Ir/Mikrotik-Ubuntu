@@ -38,3 +38,23 @@ jobs:
       - name: Check safe help path
         run: bash script.sh --help
 
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ['7.24.4', '7.23.7', '6.49.22']
+    steps:
+      - name: Validate the official CHR RAW archive and partition table
+        env:
+          VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          archive="chr-${VERSION}.img.zip"
+          image="chr-${VERSION}.img"
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 900 \
+            "https://download.mikrotik.com/routeros/${VERSION}/${archive}" -o "$archive"
+          unzip -tq "$archive"
+          test "$(unzip -Z -1 "$archive")" = "$image"
+          unzip -p "$archive" "$image" > "$image"
+          sfdisk -d "$image"
+
