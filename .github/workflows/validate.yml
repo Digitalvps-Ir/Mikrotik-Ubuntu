@@ -1,4 +1,4 @@
-name: Validate CHR installer
+name: Digitalvps.ir | Validate CHR installer
 
 on:
   workflow_dispatch:
@@ -85,4 +85,3 @@ jobs:
           test "$(unzip -Z -1 "$archive")" = "$image"
           unzip -p "$archive" "$image" > "$image"
           sfdisk -d "$image"
-
