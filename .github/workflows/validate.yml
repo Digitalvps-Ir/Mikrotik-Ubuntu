@@ -1,6 +1,7 @@
 name: Validate CHR installer
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - script.sh
@@ -57,6 +58,7 @@ jobs:
         run: bash script.sh --help
 
   images:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
