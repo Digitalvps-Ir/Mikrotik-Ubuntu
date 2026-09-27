@@ -35,6 +35,24 @@ jobs:
               subprocess.run(['dash', '-n', str(path)], check=True)
               subprocess.run(['shellcheck', '-S', 'warning', '-s', 'sh', str(path)], check=True)
           PY
+      - name: Build a test initramfs with embedded installer
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq initramfs-tools busybox
+          config=$(mktemp -d)
+          cp -a /etc/initramfs-tools/. "$config/"
+          mkdir -p "$config/hooks" "$config/scripts/local-premount"
+          cp /tmp/chr-hook.sh "$config/hooks/chr-install"
+          cp /tmp/chr-boot.sh "$config/scripts/local-premount/chr-install"
+          chmod +x "$config/hooks/chr-install" "$config/scripts/local-premount/chr-install"
+          sudo mkdir -p /var/lib/chr-install
+          printf 'test image\n' | sudo tee /var/lib/chr-install/chr.img >/dev/null
+          printf 'TARGET_DISK=/dev/vda\n' | sudo tee /var/lib/chr-install/plan >/dev/null
+          kernel=$(ls /lib/modules | head -n 1)
+          sudo mkinitramfs -d "$config" -o /tmp/chr-test-initrd.img "$kernel"
+          lsinitramfs /tmp/chr-test-initrd.img | grep -Fx 'chr-install/chr.img' >/dev/null
+          lsinitramfs /tmp/chr-test-initrd.img | grep -Fx 'scripts/local-premount/chr-install' >/dev/null
       - name: Check safe help path
         run: bash script.sh --help
 
