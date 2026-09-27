@@ -1,0 +1,8 @@
+# Generated local previews and Python cache
+assets/*-preview.png
+__pycache__/
+*.py[cod]
+
+# Downloaded CHR archives and disk images
+*.zip
+*.img

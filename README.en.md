@@ -1,102 +1,143 @@
-# Install MikroTik CHR on an Ubuntu VPS | Digitalvps.ir
+<div align="center">
 
-This project writes the official MikroTik Cloud Hosted Router (CHR) RAW image to the disk of an x86_64 virtual machine. It has two installation modes:
+<img src="assets/hero.svg" alt="Digitalvps.ir | MikroTik CHR installer for Ubuntu and Rescue" width="100%">
 
-1. **From a running Ubuntu system (default):** Prepare the image in a dedicated initramfs. A one-time GRUB entry writes the disk at the next boot, before the Ubuntu root filesystem is mounted. Virtualizor Rescue is not required.
-2. **From Rescue:** Write an unmounted target disk directly from an independent rescue environment.
+<h1>Install MikroTik CHR on an Ubuntu VPS</h1>
 
-[راهنمای فارسی](README.md) · [Digitalvps.ir](https://digitalvps.ir)
+<p><strong>Start from a running Ubuntu VM. Provider Rescue is optional.</strong><br>Official image download, one-time offline boot, disk write, and read-back verification.</p>
+
+<p>
+  <a href="#install-live"><img src="https://img.shields.io/badge/Install-Ubuntu%20%2B%20Rescue-42d9c4?style=for-the-badge" alt="Ubuntu and Rescue installation modes"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Digitalvps-Ir/Mikrotik-Ubuntu?style=for-the-badge&amp;color=48c9b0" alt="MIT license"></a>
+  <a href="https://mikrotik.com/download/chr"><img src="https://img.shields.io/badge/CHR-Official%20RAW%20image-5797ff?style=for-the-badge" alt="Official CHR RAW image"></a>
+</p>
+
+<p>
+  <a href="#install-live">Ubuntu install</a> ·
+  <a href="#install-rescue">Rescue install</a> ·
+  <a href="#plans">Services and prices</a> ·
+  <a href="README.md">فارسی</a>
+</p>
+
+</div>
 
 > [!CAUTION]
-> Both modes erase all data on the selected disk. Keep an external backup and verify that the provider console is accessible before starting. Review the disk name yourself.
+> **This replaces Ubuntu and erases every partition on the target disk.** Verify an off-server backup, the exact disk, and working provider console/VNC access first. A real VPS CHR boot and network test is still outstanding; use a disposable VM before relying on this workflow for an important server.
 
-## Versions
+## 🧭 Choose a path
 
-Suggested releases as of 27 September 2026:
-
-| Version | Channel | Use |
+| Your environment | Mode | What happens |
 | --- | --- | --- |
-| `7.24.4` | Stable | New installations |
-| `7.23.7` | Long-term | Long-term channel |
-| `6.49.22` | Long-term | Legacy compatibility only |
+| Ubuntu is running; provider Rescue is unavailable | **Default live mode** | The next boot writes the disk before Ubuntu mounts its root filesystem. |
+| Independent Rescue is available; target disk is unmounted | **`--mode rescue`** | Writes and verifies the offline disk immediately. |
 
-The `--version` option also accepts any numeric official 6.x or 7.x release, including newer releases when MikroTik publishes their CHR RAW archive. Beta and development labels are rejected. Check the [official CHR download page](https://mikrotik.com/download/chr) before selecting a release. A syntactically valid version does not guarantee that its archive exists; an unavailable download stops before any disk write.
+<div align="center">
+<img src="assets/boot-flow.gif" alt="Installation sequence: Ubuntu, RAM installer, RouterOS CHR" width="780">
+</div>
 
-## Requirements
+This is a **fresh RouterOS CHR installation**, not an upgrade of an existing router. It uses the official **x86_64 RAW** image from MikroTik. It does not migrate Ubuntu's IP address, gateway, password, or firewall to CHR.
 
-- An x86_64 VPS or VM with a bootable virtual disk. Containers are not supported.
-- Legacy BIOS and root access. The installer refuses UEFI boot for this workflow.
-- Provider console or VNC access for first boot and network troubleshooting.
-- For the default mode: Ubuntu with GRUB, initramfs-tools, BusyBox and at least 1 GiB RAM. This path does not support systemd-boot.
-- `curl`, `unzip`, `util-linux`, and `coreutils`. On Ubuntu or Debian-based Rescue:
+<a id="install-live"></a>
+## 🚀 Install from Ubuntu without Rescue
+
+**Required:** an x86_64 VM using **Legacy BIOS**, Ubuntu with GRUB and `initramfs-tools`, **2 GiB RAM recommended**, enough free space in `/tmp` and `/boot`, and a working provider console. The script rejects a guest reporting less than 1 GiB `MemTotal`; a nominal 1 GiB plan may fail that check. The installer stops in UEFI mode. Do not run it on the Virtualizor host or in a container.
+
+Inspect the disk and boot mode before proceeding:
 
 ```bash
-apt-get update
-apt-get install -y curl unzip util-linux coreutils busybox initramfs-tools grub2-common
+lsblk -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINTS,MODEL
+findmnt -no SOURCE /
+if test -d /sys/firmware/efi; then echo UEFI; else echo BIOS; fi
 ```
 
-The work directory (`/tmp` by default) needs space for both the archive and extracted image. The default mode also needs room in `/boot` for its dedicated initramfs. Use `--workdir` when `/tmp` is too small.
-
-## Install from a running Ubuntu system
-
-This is the option for a Virtualizor VPS without Rescue access. If there is one root disk, the installer detects it and displays its name for confirmation. With multiple disks, inspect `lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS,MODEL` and pass the whole target disk with `--disk`; a partition such as `/dev/vda1` is invalid.
+Install dependencies, download the standalone script, and review it before running as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
+sudo apt-get update
+sudo apt-get install -y curl unzip util-linux coreutils busybox initramfs-tools grub2-common
+curl -fL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
 less script.sh
 sudo bash script.sh --version 7.24.4
 ```
 
-Enter the exact confirmation phrase shown by the installer, for example `ERASE /dev/vda`. The image is downloaded and validated, then the installer creates a one-time GRUB entry and reboots the VM. Before Ubuntu mounts its root disk, the next boot writes and verifies the CHR image and reboots to RouterOS. Watch both reboots through the provider console; Ubuntu SSH disconnects.
+When a single root disk can be identified, the installer displays it for confirmation. Otherwise, specify the **whole Ubuntu root disk**, for example `--disk /dev/vda`, not a partition such as `/dev/vda1`. Type the exact displayed phrase, such as `ERASE /dev/vda`, to continue.
 
-If needed, use `--disk /dev/vda` with the disk's actual name. Exact confirmation is still required after automatic disk detection.
+The VM reboots automatically after staging. At the next boot, the dedicated initramfs writes the image **before Ubuntu root is mounted**, compares every image byte with the disk, and reboots into CHR. Watch both boots in the provider console. Ubuntu SSH will disconnect.
 
-Before the first reboot, you can remove a staged installation:
+<details>
+<summary>Cancel a staged installation before its first reboot</summary>
 
 ```bash
 sudo bash script.sh --cancel-live
 ```
 
-If initramfs creation or GRUB setup fails, the staging files are removed and Ubuntu remains. If the offline disk write fails, the VM stops in initramfs; diagnose through the console and do not boot a partially written disk.
+The script normally reboots immediately after staging; this command only helps while the machine has not started the installer boot.
 
-## Install from Rescue
+</details>
 
-Boot an independent Rescue system and leave the target disk unmounted:
+<a id="install-rescue"></a>
+## 🛟 Install from Rescue
+
+Use an independent Rescue environment with the target disk and its partitions **unmounted**. On Ubuntu/Debian-based Rescue, install the basic tools and inspect the disk:
 
 ```bash
-sudo bash script.sh --mode rescue --disk /dev/nvme0n1 --version 7.23.7
+sudo apt-get update
+sudo apt-get install -y curl unzip util-linux coreutils busybox
+lsblk -o NAME,TYPE,SIZE,MOUNTPOINTS,MODEL
+curl -fL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
+less script.sh
+sudo bash script.sh --mode rescue --disk /dev/vda --version 7.24.4
 ```
 
-After the `byte-for-byte verification succeeded` message, disable Rescue in the provider panel and power cycle the VM. If `/tmp` is small, use `--workdir` on a disk other than the target.
+`/dev/vda` is an example. After `byte-for-byte verification succeeded`, disable Rescue in the provider panel and power cycle the VM. If `/tmp` is too small, set `--workdir /path` on storage **outside the target disk**.
 
-`--yes-erase` bypasses interactive confirmation for automation. If you have a trusted SHA-256 digest for the ZIP archive, pass it with `--sha256 HASH`. A digest computed from the same download is not an independent authenticity check.
+## 🧩 Releases and compatibility
 
-## First boot and network
+| Selection | Status on 27 September 2026 | Note |
+| --- | --- | --- |
+| `7.24.4` | Stable | Example in the commands above |
+| `7.23.7` | Long-term | Select with `--version 7.23.7` |
+| `6.49.22` | Legacy | Use only for compatibility needs; read CHR v6 limits. |
 
-Open the provider console, set a strong password for `admin`, and configure network and management services for your provider's actual network. The installer does not inject an IP address, gateway, DNS, firewall rules or a RouterOS password. Ubuntu's static network configuration is not transferred to CHR. For a VPS without DHCP or accessible console, arrange a CHR network setup path with the provider before erasing Ubuntu.
+Any **numeric** official 6.x or 7.x version can be passed with `--version`, including future releases when MikroTik publishes a matching RAW archive. Check the [official CHR downloads](https://mikrotik.com/download/chr). Non-numeric beta/development labels are not accepted. Accepting a version number does not certify boot compatibility on every hypervisor.
 
-## Troubleshooting
-
-| Symptom | Action |
+| Project boundary | Details |
 | --- | --- |
-| Target disk mounted or in use | In Rescue, unmount the target's partitions. From Ubuntu, use the default `live` mode. |
-| Live mode requires Ubuntu root | Check that the target is the disk containing the current Ubuntu root filesystem. |
-| GRUB entry cannot be verified | Check GRUB and the provider console; staging is removed before reboot. |
-| UEFI mode | This workflow requires Legacy BIOS; change the VM firmware or use a provider-supported image method. |
-| ZIP integrity or archive contents error | Check the version and official download. No disk write has started. |
-| RAW image larger than disk | Select a larger target disk. |
-| Disk write or comparison failed | The disk may be incomplete. Recover using the provider console or Rescue. |
-| CHR boots without network | Check interface, IP, prefix and gateway through the provider console. |
-| VM does not boot | Check Rescue status, boot order and VM firmware in the provider panel. |
+| Architecture and firmware | x86_64 and Legacy BIOS for this installation path |
+| Ubuntu disk selection | Target must contain Ubuntu root; automatic detection requires one root disk |
+| First-boot network | Use the provider console and the actual service IP, prefix, gateway, and NIC |
+| Verification | ZIP/image checks, optional trusted ZIP digest via `--sha256`, disk read-back comparison |
+| Real-world testing | CI and an initramfs build pass; real VPS CHR boot and network access remain unverified |
 
-## Scope and references
+<a id="plans"></a>
+## 🌐 Digitalvps.ir services and current prices
 
-This is a fresh replacement of Ubuntu with CHR, not an in-place RouterOS upgrade. For an existing CHR installation, use RouterOS's own upgrade process and a backup. CHR licensing is separate from this project's [MIT License](LICENSE).
+Check the [official Digitalvps.ir client portal](https://client.digitalvps.ir/) for current MikroTik VPS and other service specifications, availability, and prices. Plan prices and resources change, so this README does not publish a static price or unverified service promise.
 
-- [Official CHR downloads](https://mikrotik.com/download/chr)
+Before ordering a plan for this installer, ask support whether that plan offers **Legacy BIOS, a compatible virtual disk, provider console access, and CHR boot support**. Availability of a VPS plan alone does not establish compatibility with this installation method.
+
+## 🔐 First CHR boot
+
+Use the provider console and set a strong password for `admin` immediately; a fresh official image can start without a password. Configure interface, IP/prefix, gateway, DNS, and management access restrictions for your actual VPS network. Do not assume DHCP or working SSH after the disk write.
+
+## 🛠 Troubleshooting
+
+| Symptom | Next check |
+| --- | --- |
+| Target disk is mounted or in use | In Rescue, inspect target mounts and swap. From running Ubuntu, use default live mode. |
+| Ubuntu root disk not detected | Inspect `findmnt` and `lsblk`; pass `--disk` only for the **root disk**. |
+| UEFI or GRUB error | This installer path needs Legacy BIOS and GRUB; inspect firmware and boot settings in the panel. |
+| Download or ZIP error | Check version and access to `download.mikrotik.com`; disk writing has not started. |
+| Write or comparison error | The disk may be incomplete. Diagnose via console/Rescue and do not boot it. |
+| CHR boots without network | Inspect the real NIC, MAC, IP/prefix, and gateway from the console. |
+
+Report script bugs in [GitHub Issues](https://github.com/Digitalvps-Ir/Mikrotik-Ubuntu/issues). Remove passwords, customer IPs, serials, and account data from logs first.
+
+## 📚 References
+
+- [Official CHR downloads and current releases](https://mikrotik.com/download/chr)
 - [Official CHR installation guide](https://manual.mikrotik.com/docs/getting-started/installation-and-upgrade/install/chr-installation/)
-- [Official CHR licensing guide](https://manual.mikrotik.com/docs/getting-started/routeros-licensing/chr/chr-licensing/)
+- [Official CHR licensing](https://manual.mikrotik.com/docs/getting-started/routeros-licensing/chr/chr-licensing/)
+- [MIT License](LICENSE)
 
-## Digitalvps.ir
-
-[Digitalvps.ir](https://digitalvps.ir) provides hosting and virtual server services. Check the [website](https://digitalvps.ir) or [client area](https://client.digitalvps.ir) for current services, prices and availability. This README intentionally does not freeze prices or promotional claims.
+<div align="center"><strong>Digitalvps.ir</strong> · independent open-source CHR installer</div>
