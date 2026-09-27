@@ -2,10 +2,6 @@ name: Validate CHR installer
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - script.sh
-      - .github/workflows/validate.yml
   pull_request:
     paths:
       - script.sh
