@@ -103,6 +103,24 @@ write_rescue() {
     log 'Use the provider console for first login and set a strong admin password immediately.'
 }
 
+download_archive() {
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        if curl --fail --location --connect-timeout 20 --max-time 900 \
+            --proto '=https' --tlsv1.2 \
+            --continue-at - --output "$ARCHIVE" "$URL"; then
+            if unzip -tq "$ARCHIVE" >/dev/null 2>&1; then
+                return 0
+            fi
+            log 'Downloaded ZIP failed its integrity check; restarting the download.'
+            rm -f -- "$ARCHIVE"
+        fi
+        log "Download attempt $attempt failed; retrying ..."
+        sleep "$((attempt * 2))"
+    done
+    die 'Could not obtain a valid CHR ZIP after five attempts.'
+}
+
 stage_live() {
     local kernel boot_uuid boot_prefix kernel_args image_hash disk_head_hash
     kernel=$(uname -r)
@@ -247,7 +265,7 @@ if (( ${CANCEL_LIVE:-0} )); then
 fi
 [[ $(uname -m) == x86_64 ]] || die 'This installer supports x86_64 CHR only.'
 
-for command in curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint findmnt sort cat cp chmod mkdir busybox; do
+for command in curl unzip sfdisk lsblk blockdev readlink dd cmp sync sha256sum stat cut grep tr mktemp rm awk mountpoint findmnt sort cat cp chmod mkdir busybox sleep; do
     command -v "$command" >/dev/null 2>&1 || die "Missing $command. Install curl, unzip, util-linux and coreutils in the rescue environment."
 done
 
@@ -324,13 +342,12 @@ ARCHIVE="$WORK_DIR/chr-$VERSION.img.zip"
 IMAGE="$WORK_DIR/chr-$VERSION.img"
 URL="$REPOSITORY/$VERSION/chr-$VERSION.img.zip"
 log "Downloading official CHR image: $URL"
-curl --fail --location --retry 3 --connect-timeout 20 --max-time 900 --proto '=https' --tlsv1.2 --output "$ARCHIVE" "$URL"
+download_archive
 [[ -s "$ARCHIVE" ]] || die 'The downloaded ZIP is empty.'
 
 if [[ -n "$EXPECTED_SHA256" ]]; then
     printf '%s  %s\n' "$EXPECTED_SHA256" "$ARCHIVE" | sha256sum --check --status || die 'ZIP SHA-256 does not match.'
 fi
-unzip -tq "$ARCHIVE" >/dev/null || die 'The downloaded ZIP failed its integrity check.'
 mapfile -t ZIP_ENTRIES < <(unzip -Z -1 "$ARCHIVE")
 [[ ${#ZIP_ENTRIES[@]} -eq 1 && ${ZIP_ENTRIES[0]} == "chr-$VERSION.img" ]] || die 'Unexpected ZIP contents; refusing to extract.'
 unzip -p "$ARCHIVE" "chr-$VERSION.img" > "$IMAGE"
