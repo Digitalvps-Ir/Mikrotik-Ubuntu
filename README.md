@@ -1,6 +1,8 @@
-# نصب MikroTik CHR روی Ubuntu VPS
+# نصب MikroTik CHR روی Ubuntu VPS | Digitalvps.ir
 
 این پروژه ایمیج رسمی **MikroTik Cloud Hosted Router (CHR)** را روی دیسک یک ماشین مجازی x86_64 می‌نویسد. دو روش نصب دارد:
+
+[English guide](README.en.md)
 
 1. **نصب معمولی از Ubuntu (پیش‌فرض):** ایمیج آماده و در یک initramfs اختصاصی قرار می‌گیرد. GRUB فقط برای بوت بعدی وارد محیط نصب می‌شود؛ نوشتن دیسک پیش از mount شدن ریشه انجام می‌شود. نیازی به فعال بودن Rescue در Virtualizor نیست.
 2. **نصب از Rescue:** اگر به محیط Rescue مستقل دسترسی دارید، روی دیسک unmount شده مستقیم می‌نویسد.
@@ -13,7 +15,7 @@
 - انتخاب **صریح** دیسک؛ پذیرش `/dev/vda`، `/dev/sda` و `/dev/nvme0n1` بدون حدس زدن از خروجی `fdisk`.
 - در حالت Rescue، توقف اگر دیسک mount باشد؛ در حالت معمولی، بررسی اینکه دیسک انتخابی حامل ریشهٔ Ubuntu است و نوشتن آن فقط در بوت آفلاین انجام می‌شود.
 - بررسی ZIP، جدول پارتیشن، اندازهٔ ایمیج، شناسهٔ دیسک در بوت بعدی و مقایسهٔ بایت‌به‌بایت پس از نوشتن.
-- پاک‌سازی GPT پشتیبان قدیمی در انتهای دیسک؛ حذف mount کردن پارتیشن ایمیج و reboot اضطراری SysRq.
+- پاک‌سازی جدول پارتیشن پشتیبان قدیمی در انتهای دیسک؛ حذف mount کردن پارتیشن ایمیج و reboot اضطراری SysRq.
 - پذیرش **هر شمارهٔ انتشار رسمی 6.x یا 7.x** با `--version`؛ در نتیجه نسخه‌های جدید بدون تغییر کد قابل نصب هستند، به شرطی که فایل RAW آن‌ها در مخزن رسمی منتشر شده باشد.
 
 ## نسخه‌ها
@@ -103,11 +105,10 @@ sudo bash script.sh --mode rescue --disk /dev/nvme0n1 --version 7.23.7
 - [دانلود و نسخه‌های رسمی CHR](https://mikrotik.com/download/chr)
 - [نمونهٔ رسمی نوشتن ایمیج RAW در Rescue](https://help.mikrotik.com/docs/spaces/ROS/pages/263749814/CHR+Hetzner+Cloud+Installation)
 
-## DigitalVPS
+## Digitalvps.ir
 
-[DigitalVPS](https://digitalvps.ir) ارائه‌دهندهٔ خدمات هاستینگ و سرور مجازی است. برای خدمات، موجودی و قیمت‌های **فعلی** به [سایت اصلی](https://digitalvps.ir) یا [پنل مشتریان](https://client.digitalvps.ir) مراجعه کنید؛ قیمت، تخفیف و ظرفیت در این README ثابت نگه داشته نمی‌شود. [کانال اطلاع‌رسانی](https://t.me/digital_vps) و [گروه گفتگو](https://t.me/digitalvps_group) نیز در دسترس‌اند.
+[Digitalvps.ir](https://digitalvps.ir) ارائه‌دهندهٔ خدمات هاستینگ و سرور مجازی است. برای خدمات، موجودی و قیمت‌های **فعلی** به [سایت اصلی](https://digitalvps.ir) یا [پنل مشتریان](https://client.digitalvps.ir) مراجعه کنید؛ قیمت، تخفیف و ظرفیت در این README ثابت نگه داشته نمی‌شود. [کانال اطلاع‌رسانی](https://t.me/digital_vps) و [گروه گفتگو](https://t.me/digitalvps_group) نیز در دسترس‌اند.
 
 ## مجوز
 
 [MIT](LICENSE). نام MikroTik و RouterOS متعلق به MikroTik است؛ این پروژه ابزار مستقل نصب است.
-
