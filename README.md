@@ -1,114 +1,143 @@
-# نصب MikroTik CHR روی Ubuntu VPS | Digitalvps.ir
+<div align="center">
 
-این پروژه ایمیج رسمی **MikroTik Cloud Hosted Router (CHR)** را روی دیسک یک ماشین مجازی x86_64 می‌نویسد. دو روش نصب دارد:
+<img src="assets/hero.svg" alt="Digitalvps.ir | نصب MikroTik CHR از Ubuntu یا Rescue" width="100%">
 
-[English guide](README.en.md)
+<h1>نصب میکروتیک CHR روی سرور مجازی Ubuntu</h1>
 
-1. **نصب معمولی از Ubuntu (پیش‌فرض):** ایمیج آماده و در یک initramfs اختصاصی قرار می‌گیرد. GRUB فقط برای بوت بعدی وارد محیط نصب می‌شود؛ نوشتن دیسک پیش از mount شدن ریشه انجام می‌شود. نیازی به فعال بودن Rescue در Virtualizor نیست.
-2. **نصب از Rescue:** اگر به محیط Rescue مستقل دسترسی دارید، روی دیسک unmount شده مستقیم می‌نویسد.
+<p><strong>از Ubuntu فعال نصب را شروع کنید؛ به Rescue پنل Virtualizor نیاز نیست.</strong><br>دانلود ایمیج رسمی، بوت یک‌بارمصرف، نوشتن آفلاین دیسک و بررسی نتیجه.</p>
 
-> **هشدار:** هر دو روش همهٔ داده‌های دیسک انتخابی را پاک می‌کنند. پیش از اجرا پشتیبان بگیرید، دسترسی کنسول پنل ارائه‌دهنده را بررسی کنید و نام دیسک را خودتان تأیید کنید.
+<p>
+  <a href="#install-live"><img src="https://img.shields.io/badge/Install-Ubuntu%20%2B%20Rescue-42d9c4?style=for-the-badge" alt="دو روش نصب Ubuntu و Rescue"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Digitalvps-Ir/Mikrotik-Ubuntu?style=for-the-badge&amp;color=48c9b0" alt="مجوز MIT"></a>
+  <a href="https://mikrotik.com/download/chr"><img src="https://img.shields.io/badge/CHR-Official%20RAW%20image-5797ff?style=for-the-badge" alt="ایمیج رسمی CHR"></a>
+</p>
 
-## تغییرات این نسخه
+<p>
+  <a href="#install-live">نصب بدون Rescue</a> ·
+  <a href="#install-rescue">نصب از Rescue</a> ·
+  <a href="#plans">پلن و قیمت روز</a> ·
+  <a href="README.en.md">English</a>
+</p>
 
-- دانلود ZIP ایمیج RAW فقط از `download.mikrotik.com` و باز کردن آن با `unzip`.
-- انتخاب **صریح** دیسک؛ پذیرش `/dev/vda`، `/dev/sda` و `/dev/nvme0n1` بدون حدس زدن از خروجی `fdisk`.
-- در حالت Rescue، توقف اگر دیسک mount باشد؛ در حالت معمولی، بررسی اینکه دیسک انتخابی حامل ریشهٔ Ubuntu است و نوشتن آن فقط در بوت آفلاین انجام می‌شود.
-- بررسی ZIP، جدول پارتیشن، اندازهٔ ایمیج، شناسهٔ دیسک در بوت بعدی و مقایسهٔ بایت‌به‌بایت پس از نوشتن.
-- پاک‌سازی جدول پارتیشن پشتیبان قدیمی در انتهای دیسک؛ حذف mount کردن پارتیشن ایمیج و reboot اضطراری SysRq.
-- پذیرش **هر شمارهٔ انتشار رسمی 6.x یا 7.x** با `--version`؛ در نتیجه نسخه‌های جدید بدون تغییر کد قابل نصب هستند، به شرطی که فایل RAW آن‌ها در مخزن رسمی منتشر شده باشد.
+</div>
 
-## نسخه‌ها
+> [!CAUTION]
+> **این نصب تمام اطلاعات دیسک مقصد و خود Ubuntu را پاک می‌کند.** پیش از اجرا، بکاپ خارج از سرور، نام دیسک و دسترسی واقعی به کنسول/VNC پنل را بررسی کنید. بوت و شبکهٔ CHR روی VPS واقعی هنوز آزمون انتهابه‌انتها نشده‌اند؛ برای سرور مهم ابتدا روی یک VM آزمایشی بررسی کنید.
 
-| نسخه | کانال در ۲۷ سپتامبر ۲۰۲۶ | وضعیت در اسکریپت |
+## 🧭 کدام روش برای من است؟
+
+| وضعیت شما | روش | چه اتفاقی می‌افتد؟ |
 | --- | --- | --- |
-| `7.24.4` | Stable | پیشنهاد برای نصب تازه |
-| `7.23.7` | Long-term | پیشنهاد برای کانال بلندمدت |
-| `6.49.22` | Long-term | فقط برای نیازهای سازگاری قدیمی |
+| Ubuntu روی VPS فعال است و Rescue ندارید | **نصب معمولی، پیش‌فرض** | ایمیج آماده می‌شود؛ بوت بعدی پیش از mount ریشه، دیسک را می‌نویسد. |
+| Rescue مستقل دارید و دیسک مقصد mount نیست | **`--mode rescue`** | ایمیج همان‌جا روی دیسک آفلاین نوشته و مقایسه می‌شود. |
 
-نسخه‌های قبلی اسکریپت (`7.14.3`، `7.9`، `7.7`، `6.49.15` و `6.49.13`) و هر نسخهٔ عددی رسمی دیگر نیز با `--version` قابل انتخاب‌اند. نسخه‌های development/beta عمداً در ورودی عمومی پذیرفته نمی‌شوند. برای بررسی نسخهٔ روز و انتخاب فایل مناسب، [صفحهٔ رسمی CHR](https://mikrotik.com/download/chr) را ببینید. وجود یک شمارهٔ نسخه به‌تنهایی به معنی موجود بودن فایل RAW آن نیست؛ دانلود نامعتبر پیش از هرگونه نوشتن روی دیسک متوقف می‌شود.
+<div align="center">
+<img src="assets/boot-flow.gif" alt="مسیر نصب: Ubuntu، محیط نصب در RAM، سپس RouterOS CHR" width="780">
+</div>
 
-## پیش‌نیازها
+این ابزار **نصب تازهٔ RouterOS CHR** است؛ Ubuntu را حفظ نمی‌کند و برای ارتقای RouterOS نصب‌شده به کار نمی‌رود. فقط فایل **RAW x86_64** را از دامنهٔ رسمی MikroTik می‌گیرد. IP، gateway، رمز و فایروال Ubuntu به CHR منتقل نمی‌شوند.
 
-- VPS یا VM با پردازندهٔ `x86_64` و دیسک مجازی قابل بوت؛ این روش روی کانتینر LXC/OpenVZ اجرا نمی‌شود.
-- **Legacy BIOS** و دسترسی root. اگر VM در UEFI بوت شده باشد، اسکریپت پیش از دانلود متوقف می‌شود؛ firmware را از پنل ارائه‌دهنده تغییر دهید یا از ایمیج سازگار با روش نصب آن ارائه‌دهنده استفاده کنید.
-- دسترسی به کنسول/VNC پنل ارائه‌دهنده برای نخستین ورود و عیب‌یابی شبکه.
-- برای نصب معمولی: Ubuntu با `initramfs-tools`، `GRUB`، `busybox` و دست‌کم **۱ گیگابایت RAM**. این روش برای نصب‌های بوت‌شده با systemd-boot، محیط کانتینری یا firmware UEFI نیست.
-- `curl`، `unzip`، `util-linux` و `coreutils`. روی Ubuntu یا Rescue مبتنی بر Debian/Ubuntu:
+<a id="install-live"></a>
+## 🚀 نصب از Ubuntu بدون Rescue
+
+**پیش‌نیاز:** ماشین مجازی x86_64 با **Legacy BIOS**، Ubuntu دارای GRUB و `initramfs-tools`، **۲ GiB RAM پیشنهادی**، فضای کافی در `/tmp` و `/boot`، و کنسول قابل دسترس. اسکریپت مقدار `MemTotal` کمتر از ۱ GiB را رد می‌کند؛ RAM اسمی ۱ GiB ممکن است از این بررسی عبور نکند. این اسکریپت در حالت UEFI متوقف می‌شود. روی کانتینر یا هاست Virtualizor اجرا نکنید.
+
+ابتدا دیسک، نوع بوت و بکاپ را بررسی کنید:
 
 ```bash
-apt-get update
-apt-get install -y curl unzip util-linux coreutils busybox initramfs-tools grub2-common
+lsblk -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINTS,MODEL
+findmnt -no SOURCE /
+if test -d /sys/firmware/efi; then echo UEFI; else echo BIOS; fi
 ```
 
-فضای خالی محل کار (`/tmp` یا مسیر `--workdir`) باید برای ZIP و ایمیج استخراج‌شده کافی باشد. نصب معمولی علاوه بر آن به فضای کافی در `/boot` برای initramfs اختصاصی نیاز دارد. اگر `/tmp` روی RAM قرار دارد و فضای کافی ندارد، مسیر دیگری بدهید.
-
-## نصب معمولی از Ubuntu
-
-این روش برای VPSهای Virtualizor که Rescue ندارند مناسب است. اسکریپت در نصب‌های تک‌دیسکی دیسک حامل ریشهٔ Ubuntu را تشخیص می‌دهد و نام آن را برای تأیید نشان می‌دهد. در نصب چنددیسکی، نام **کل دیسک** را با `lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS,MODEL` بررسی و با `--disk` مشخص کنید؛ پارتیشن‌هایی مانند `/dev/vda1` مجاز نیستند. اسکریپت را دریافت و پیش از اجرا بررسی کنید:
+سپس وابستگی‌ها و اسکریپت را بگیرید. اسکریپت را پیش از اجرای root بخوانید:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
+sudo apt-get update
+sudo apt-get install -y curl unzip util-linux coreutils busybox initramfs-tools grub2-common
+curl -fL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
 less script.sh
 sudo bash script.sh --version 7.24.4
 ```
 
-در تأیید تعاملی باید دقیقاً عبارت نشان‌داده‌شده، مانند `ERASE /dev/vda`، را وارد کنید. اسکریپت ایمیج را دانلود و بررسی می‌کند، یک ورودی GRUB یک‌بارمصرف می‌سازد و سپس VM را reboot می‌کند. در بوت بعدی، پیش از mount شدن Ubuntu، ایمیج روی دیسک نوشته و تأیید می‌شود و VM دوباره به CHR بوت می‌شود. فرآیند را از کنسول/VNC پنل ببینید؛ SSH Ubuntu پس از reboot قطع می‌شود.
+اسکریپت در حالت تک‌دیسک، دیسک حامل ریشهٔ Ubuntu را پیدا می‌کند. اگر نتوانست با اطمینان انتخاب کند، نام **کل دیسک** را بدهید؛ مثلاً `--disk /dev/vda`، نه `/dev/vda1`. برای ادامه باید عبارت دقیق نمایش‌داده‌شده، مانند `ERASE /dev/vda`، را تایپ کنید.
 
-اگر دیسک به‌درستی تشخیص داده نشد، `--disk /dev/vda` را با نام واقعی دیسک وارد کنید. حتی در حالت تشخیص خودکار، تأیید دقیق نام دیسک لازم است.
+پس از آماده‌سازی، VM خودکار reboot می‌شود. مرحلهٔ نوشتن دیسک در initramfs، **پیش از mount شدن Ubuntu** اجرا می‌شود؛ پس از مقایسهٔ بایت‌به‌بایت، بوت بعدی CHR را بالا می‌آورد. هر دو بوت را از کنسول پنل دنبال کنید. SSH اوبونتو قطع خواهد شد.
 
-تا **پیش از reboot اول** می‌توانید نصب آماده‌شده را لغو کنید:
+<details>
+<summary>اگر نصب آماده شد اما هنوز reboot شروع نشده، چگونه لغو کنم؟</summary>
 
 ```bash
 sudo bash script.sh --cancel-live
 ```
 
-اگر `mkinitramfs` یا ساخت ورودی GRUB خطا بدهد، اسکریپت فایل‌های موقت و ورودی بوت نصب را حذف می‌کند و Ubuntu حفظ می‌شود. اگر هنگام نوشتن آفلاین خطا رخ دهد، VM در محیط initramfs متوقف می‌شود؛ از کنسول پنل عیب‌یابی کنید و از بوت دیسک ناقص خودداری کنید.
+اسکریپت معمولاً بلافاصله پس از آماده‌سازی reboot می‌کند؛ این فرمان تنها تا قبل از آغاز بوت نصب کاربرد دارد.
 
-## نصب از Rescue
+</details>
 
-اگر Rescue مستقل در پنل فعال است، به آن بوت کنید و دیسک مقصد را unmount نگه دارید:
+<a id="install-rescue"></a>
+## 🛟 نصب از Rescue
+
+در Rescue مستقل، دیسک مقصد و پارتیشن‌هایش باید **unmount** باشند. روی Rescue مبتنی بر Ubuntu/Debian ابزارهای پایه را نصب کنید، سپس نام دیسک را با `lsblk` بررسی کنید:
 
 ```bash
-sudo bash script.sh --mode rescue --disk /dev/nvme0n1 --version 7.23.7
+sudo apt-get update
+sudo apt-get install -y curl unzip util-linux coreutils busybox
+lsblk -o NAME,TYPE,SIZE,MOUNTPOINTS,MODEL
+curl -fL https://raw.githubusercontent.com/Digitalvps-Ir/Mikrotik-Ubuntu/main/script.sh -o script.sh
+less script.sh
+sudo bash script.sh --mode rescue --disk /dev/vda --version 7.24.4
 ```
 
-پس از پیام **byte-for-byte verification succeeded**، Rescue را در پنل غیرفعال و VM را power cycle کنید. اگر `/tmp` کوچک است، با `--workdir` مسیر کافی روی **دیسکی غیر از مقصد** بدهید.
+`/dev/vda` فقط نمونه است. پس از پیام `byte-for-byte verification succeeded`، Rescue را در پنل غیرفعال و VM را از پنل power cycle کنید. اگر `/tmp` کوچک است، `--workdir /path` را روی فضایی **خارج از دیسک مقصد** قرار دهید.
 
-برای اجرای غیرتعاملی می‌توان `--yes-erase` داد. اگر SHA-256 معتبرِ ZIP را از یک منبع قابل اعتماد دارید، آن را با `--sha256 HASH` بررسی کنید. اسکریپت مقدار checksum منتشرنشده‌ای را به‌جای سازنده حدس نمی‌زند.
+## 🧩 نسخه‌ها و سازگاری
 
-## اولین بوت و شبکه
+| انتخاب | وضعیت در ۲۷ سپتامبر ۲۰۲۶ | نکته |
+| --- | --- | --- |
+| `7.24.4` | Stable | نمونهٔ فرمان‌های بالا |
+| `7.23.7` | Long-term | قابل انتخاب با `--version 7.23.7` |
+| `6.49.22` | قدیمی | فقط برای نیاز سازگاری؛ محدودیت‌های CHR v6 را بخوانید. |
 
-از کنسول پنل وارد CHR شوید، برای کاربر `admin` رمز قوی تنظیم کنید، سپس شبکه و سرویس‌های مدیریتی را طبق نیاز خود تنظیم کنید.
+اسکریپت هر شمارهٔ **عددی** رسمی از سری 6 یا 7 را می‌پذیرد؛ برای نسخهٔ تازه‌تر لازم نیست فهرست اسکریپت عوض شود. البته فایل RAW همان نسخه باید در [صفحهٔ رسمی CHR](https://mikrotik.com/download/chr) موجود باشد. beta/development با نام‌های غیرعددی در این مسیر پذیرفته نمی‌شوند. «پذیرفته‌شدن شماره» تضمین بوت روی همهٔ مجازی‌سازها نیست.
 
-اسکریپت IP، gateway، DNS، firewall یا رمز RouterOS را به ایمیج تزریق نمی‌کند. Ubuntu ممکن است IP ثابت داشته باشد، در حالی که CHR پس از بوت به تنظیمات متفاوتی نیاز پیدا کند. برای سرور بدون DHCP یا بدون کنسول قابل دسترس، **پیش از پاک کردن Ubuntu** روش تنظیم شبکه در CHR را با ارائه‌دهنده هماهنگ کنید. هیچ نتیجه‌ای دربارهٔ دسترسی SSH پس از reboot صرفاً از موفقیت `dd` قابل استنتاج نیست.
-
-## عیب‌یابی
-
-| پیام/علامت | علت محتمل و اقدام |
+| محدودیت این پروژه | توضیح |
 | --- | --- |
-| `target disk ... mounted or in use` | فقط در حالت Rescue: پارتیشن‌های دیسک مقصد را unmount کنید. برای نصب از Ubuntu از حالت پیش‌فرض `live` استفاده کنید. |
-| `live mode requires ... Ubuntu root` | دیسک انتخابی همان دیسک Ubuntu نیست یا ریشه روی چند دیسک قرار دارد؛ دیسک را بررسی کنید. |
-| `GRUB ... could not be verified` | از پنل کنسول و تنظیمات GRUB مطمئن شوید؛ نصب قبل از reboot لغو می‌شود. |
-| `UEFI mode` | firmware ماشین مجازی با این روش RAW سازگار نیست؛ Legacy BIOS را در پنل انتخاب کنید یا روش نصب تصویری سازگار ارائه‌دهنده را به کار ببرید. |
-| `ZIP failed its integrity check` یا `Unexpected ZIP contents` | دانلود ناقص یا فایل نامعتبر است؛ شبکه، شمارهٔ نسخه و لینک رسمی را بررسی کنید. |
-| `RAW image is larger than the selected disk` | دیسک بزرگ‌تری انتخاب کنید. |
-| خطای `dd` یا `cmp` | دیسک ممکن است ناقص نوشته شده باشد. از کنسول یا Rescue عیب‌یابی کنید و از بوت دیسک ناقص خودداری کنید. |
-| CHR بوت شد اما شبکه ندارد | از کنسول ارائه‌دهنده IP، gateway و رابط شبکه را بررسی کنید. تنظیمات Ubuntu به‌صورت خودکار منتقل نمی‌شوند. |
-| VM بوت نمی‌شود | Rescue را غیرفعال کنید، ترتیب بوت و firmware را در پنل کنترل کنید و نتیجهٔ کنسول را با پشتیبانی ارائه‌دهنده بررسی کنید. |
+| معماری و firmware | فقط x86_64 و Legacy BIOS در این مسیر نصب |
+| انتخاب دیسک در Ubuntu | دیسک مقصد باید دیسک ریشهٔ Ubuntu باشد؛ تشخیص خودکار فقط وقتی یک دیسک ریشه پیدا شود |
+| شبکهٔ نخستین بوت | نیازمند کنسول و تنظیم متناسب با IP، prefix، gateway و NIC سرویس شما |
+| اعتبارسنجی | بررسی ساختار ZIP و ایمیج، امکان SHA-256 مرجع با `--sha256`، و مقایسهٔ دادهٔ نوشته‌شده |
+| آزمون واقعی | بررسی‌های CI و ساخت initramfs انجام شده؛ بوت CHR و دسترسی شبکه روی VPS واقعی هنوز تأیید نشده است |
 
-## محدودیت‌ها و منابع
+<a id="plans"></a>
+## 🌐 پلن‌ها و قیمت روز Digitalvps.ir
 
-این ابزار جایگزین Ubuntu با CHR می‌شود؛ ابزار ارتقای RouterOS موجود نیست. برای ارتقای CHR نصب‌شده، از روند به‌روزرسانی خود RouterOS و پشتیبان‌گیری استفاده کنید. لایسنس Free CHR محدودیت سرعت دارد؛ جزئیات را در [مستندات رسمی لایسنس](https://manual.mikrotik.com/docs/getting-started/routeros-licensing/chr/chr-licensing/) ببینید.
+برای **سرور مجازی میکروتیک** و دیگر سرویس‌ها، مشخصات، موجودی و قیمت روز را در [پنل رسمی Digitalvps.ir](https://client.digitalvps.ir/) ببینید. قیمت و منابع پلن‌ها تغییر می‌کنند؛ این README عدد ثابت یا وعدهٔ تأییدنشده منتشر نمی‌کند.
 
+پیش از سفارش برای اجرای این اسکریپت، از پشتیبانی دربارهٔ **Legacy BIOS، نوع دیسک مجازی، دسترسی کنسول و امکان بوت CHR** روی پلن مدنظر سؤال کنید. وجود پلن VPS به‌تنهایی به معنی سازگاری این روش نصب با آن پلن نیست.
+
+## 🔐 بعد از اولین بوت
+
+از کنسول وارد RouterOS شوید و فوراً برای کاربر `admin` رمز قوی بگذارید؛ ایمیج تازهٔ رسمی ممکن است با رمز خالی شروع شود. سپس رابط، IP/prefix، gateway، DNS و محدودیت دسترسی سرویس‌های مدیریتی را طبق اطلاعات همان VPS تنظیم کنید. به دسترسی SSH یا DHCP پس از نصب اتکا نکنید.
+
+## 🛠 عیب‌یابی سریع
+
+| نشانه | بررسی بعدی |
+| --- | --- |
+| دیسک `mounted or in use` | در Rescue، mount و swap دیسک را بررسی کنید؛ از Ubuntu فعال، حالت پیش‌فرض را اجرا کنید. |
+| دیسک ریشه شناسایی نشد | خروجی `findmnt` و `lsblk` را بررسی کنید؛ در صورت لزوم `--disk` را برای **دیسک ریشه** بدهید. |
+| پیام UEFI یا GRUB | این مسیر به Legacy BIOS و GRUB نیاز دارد؛ تنظیمات firmware/boot را در پنل کنترل کنید. |
+| دانلود یا ZIP نامعتبر | نسخه و دسترسی به `download.mikrotik.com` را بررسی کنید؛ نوشتن دیسک هنوز آغاز نشده است. |
+| خطای نوشتن یا مقایسه | دیسک ممکن است ناقص باشد؛ از کنسول/Rescue عیب‌یابی کنید و آن را بوت نکنید. |
+| CHR بالا آمد ولی شبکه ندارد | از کنسول، NIC، MAC، IP/prefix و gateway واقعی سرویس را بررسی کنید. |
+
+برای گزارش خطای اسکریپت، [Issue باز کنید](https://github.com/Digitalvps-Ir/Mikrotik-Ubuntu/issues). رمز، IP خصوصی مشتری، شماره‌سریال و اطلاعات حساب را از لاگ حذف کنید.
+
+## 📚 منابع
+
+- [دانلود رسمی CHR و نسخه‌های روز](https://mikrotik.com/download/chr)
 - [راهنمای رسمی نصب CHR](https://manual.mikrotik.com/docs/getting-started/installation-and-upgrade/install/chr-installation/)
-- [دانلود و نسخه‌های رسمی CHR](https://mikrotik.com/download/chr)
-- [نمونهٔ رسمی نوشتن ایمیج RAW در Rescue](https://help.mikrotik.com/docs/spaces/ROS/pages/263749814/CHR+Hetzner+Cloud+Installation)
+- [لایسنس رسمی CHR](https://manual.mikrotik.com/docs/getting-started/routeros-licensing/chr/chr-licensing/)
+- [مجوز MIT این پروژه](LICENSE)
 
-## Digitalvps.ir
-
-[Digitalvps.ir](https://digitalvps.ir) ارائه‌دهندهٔ خدمات هاستینگ و سرور مجازی است. برای خدمات، موجودی و قیمت‌های **فعلی** به [سایت اصلی](https://digitalvps.ir) یا [پنل مشتریان](https://client.digitalvps.ir) مراجعه کنید؛ قیمت، تخفیف و ظرفیت در این README ثابت نگه داشته نمی‌شود. [کانال اطلاع‌رسانی](https://t.me/digital_vps) و [گروه گفتگو](https://t.me/digitalvps_group) نیز در دسترس‌اند.
-
-## مجوز
-
-[MIT](LICENSE). نام MikroTik و RouterOS متعلق به MikroTik است؛ این پروژه ابزار مستقل نصب است.
+<div align="center"><strong>Digitalvps.ir</strong> · ابزار مستقل و متن‌باز نصب CHR</div>
