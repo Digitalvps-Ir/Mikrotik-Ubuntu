@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Replace an Ubuntu VM disk with the official MikroTik CHR RAW image.
+# Digitalvps.ir: install the official MikroTik CHR RAW image on an Ubuntu VM.
 set -Eeuo pipefail
 umask 077
 
@@ -19,6 +19,8 @@ LIVE_INITRD='/boot/chr-install.img'
 
 usage() {
     cat <<'USAGE'
+Digitalvps.ir | MikroTik CHR installer
+
 Usage: sudo bash script.sh [--disk /dev/vda] [--version 7.24.4] [options]
 
 Default live mode starts from Ubuntu and installs on the next boot, before the
@@ -91,7 +93,7 @@ write_rescue() {
         die 'The target disk became mounted; refusing to write.'
     fi
     WRITE_STARTED=1
-    log 'Clearing the last MiB to remove stale backup GPT metadata ...'
+    log 'Clearing the last MiB to remove stale backup partition metadata ...'
     dd if=/dev/zero of="$DISK" bs=512 seek="$((DISK_SIZE / 512 - 2048))" count=2048 conv=fsync status=none
     log "Writing CHR to $DISK ..."
     dd if="$IMAGE" of="$DISK" bs=4M conv=fsync status=progress
@@ -201,7 +203,7 @@ actual_head=$(dd if="$TARGET_DISK" bs=4096 count=1 2>/dev/null | sha256sum | cut
 [ "$actual_head" = "$DISK_HEAD_HASH" ] || fail_install 'target disk identity changed'
 echo 'CHR installer: writing image before root mount ...' > /dev/console
 tail_seek=$((DISK_SIZE / 512 - 2048))
-dd if=/dev/zero of="$TARGET_DISK" bs=512 seek="$tail_seek" count=2048 conv=fsync status=none || fail_install 'cannot clear old GPT metadata'
+dd if=/dev/zero of="$TARGET_DISK" bs=512 seek="$tail_seek" count=2048 conv=fsync status=none || fail_install 'cannot clear old backup partition metadata'
 dd if=/chr-install/chr.img of="$TARGET_DISK" bs=4M conv=fsync status=none || fail_install 'disk write failed'
 sync
 cmp -n "$IMAGE_SIZE" /chr-install/chr.img "$TARGET_DISK" || fail_install 'disk verification failed'
@@ -365,4 +367,3 @@ if [[ $MODE == live ]]; then
 else
     write_rescue
 fi
-
