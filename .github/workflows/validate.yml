@@ -1,0 +1,87 @@
+name: Digitalvps.ir | Validate CHR installer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - script.sh
+      - .github/workflows/validate.yml
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Bash syntax
+        run: bash -n script.sh
+      - name: Check shell script
+        run: shellcheck -S warning script.sh
+      - name: Check embedded initramfs scripts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          source = Path('script.sh').read_text()
+          for marker in ('HOOK', 'BOOT'):
+              match = re.search(r"<<'" + marker + r"'\n(.*?)\n" + marker + r"\n", source, re.S)
+              if not match:
+                  raise SystemExit(f'Missing {marker} script')
+              path = Path('/tmp/chr-' + marker.lower() + '.sh')
+              path.write_text(match.group(1) + '\n')
+              subprocess.run(['dash', '-n', str(path)], check=True)
+              subprocess.run(['shellcheck', '-S', 'warning', '-s', 'sh', str(path)], check=True)
+          PY
+      - name: Build a test initramfs with embedded installer
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq initramfs-tools busybox
+          config=$(mktemp -d)
+          cp -a /etc/initramfs-tools/. "$config/"
+          mkdir -p "$config/hooks" "$config/scripts/local-premount"
+          cp /tmp/chr-hook.sh "$config/hooks/chr-install"
+          cp /tmp/chr-boot.sh "$config/scripts/local-premount/chr-install"
+          chmod +x "$config/hooks/chr-install" "$config/scripts/local-premount/chr-install"
+          sudo mkdir -p /var/lib/chr-install
+          printf 'test image\n' | sudo tee /var/lib/chr-install/chr.img >/dev/null
+          printf 'TARGET_DISK=/dev/vda\n' | sudo tee /var/lib/chr-install/plan >/dev/null
+          kernel=$(ls /lib/modules | head -n 1)
+          sudo mkinitramfs -d "$config" -o /tmp/chr-test-initrd.img "$kernel"
+          lsinitramfs /tmp/chr-test-initrd.img | grep -Fx 'chr-install/chr.img' >/dev/null
+          lsinitramfs /tmp/chr-test-initrd.img | grep -Fx 'scripts/local-premount/chr-install' >/dev/null
+      - name: Check safe help path
+        run: bash script.sh --help
+
+  images:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['7.24.4', '7.23.7', '6.49.22']
+    steps:
+      - name: Validate the official CHR RAW archive and partition table
+        env:
+          VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          archive="chr-${VERSION}.img.zip"
+          image="chr-${VERSION}.img"
+          downloaded=0
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --location --silent --show-error --connect-timeout 20 \
+              --max-time 300 --continue-at - \
+              "https://download.mikrotik.com/routeros/${VERSION}/${archive}" -o "$archive"; then
+              if unzip -tq "$archive"; then
+                downloaded=1
+                break
+              fi
+              rm -f "$archive"
+            fi
+            sleep "$((attempt * 2))"
+          done
+          test "$downloaded" -eq 1
+          test "$(unzip -Z -1 "$archive")" = "$image"
+          unzip -p "$archive" "$image" > "$image"
+          sfdisk -d "$image"
